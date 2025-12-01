@@ -1,0 +1,76 @@
+local lnko = require("lnko")
+local fs = require("lnko.fs")
+local plan = require("lnko.plan")
+
+describe("lnko", function()
+    local test_dir = "/tmp/lnko-test-" .. os.time()
+    local source_dir = test_dir .. "/source"
+    local target_dir = test_dir .. "/target"
+
+    setup(function()
+        os.execute("mkdir -p " .. source_dir .. "/pkg1/subdir")
+        os.execute("mkdir -p " .. target_dir)
+        os.execute("echo 'file1' > " .. source_dir .. "/pkg1/file1.txt")
+        os.execute("echo 'file2' > " .. source_dir .. "/pkg1/subdir/file2.txt")
+    end)
+
+    teardown(function()
+        os.execute("rm -rf " .. test_dir)
+    end)
+
+    describe("fs", function()
+        it("should check if directory exists", function()
+            assert.is_true(fs.is_directory(source_dir))
+            assert.is_falsy(fs.is_directory(source_dir .. "/nonexistent"))
+        end)
+
+        it("should join paths", function()
+            assert.are.equal("/foo/bar", fs.join("/foo", "bar"))
+            assert.are.equal("/foo/bar/baz", fs.join("/foo", "bar", "baz"))
+        end)
+
+        it("should list directory contents", function()
+            local entries = fs.dir(source_dir)
+            assert.are.equal(1, #entries)
+            assert.are.equal("pkg1", entries[1])
+        end)
+    end)
+
+    describe("plan", function()
+        it("should create empty plan", function()
+            local p = plan.new()
+            assert.are.equal(0, #plan.get_tasks(p))
+            assert.is_false(plan.has_conflicts(p))
+        end)
+
+        it("should add tasks to plan", function()
+            local p = plan.new()
+            plan.add_task(p, plan.ACTION_LINK, "/target/file", "/source/file")
+            assert.are.equal(1, #plan.get_tasks(p))
+        end)
+
+        it("should track conflicts", function()
+            local p = plan.new()
+            plan.add_conflict(p, "/some/path", "test conflict")
+            assert.is_true(plan.has_conflicts(p))
+            assert.are.equal(1, #plan.get_conflicts(p))
+        end)
+    end)
+
+    describe("link", function()
+        it("should plan link for package", function()
+            local p = lnko.plan_link(source_dir, "pkg1", target_dir, {})
+            assert.is_false(plan.has_conflicts(p))
+            local tasks = plan.get_tasks(p)
+            assert.is_true(#tasks > 0)
+        end)
+
+        it("should link and unlink package", function()
+            lnko.link_package(source_dir, "pkg1", target_dir, { skip = true })
+            assert.is_true(fs.is_symlink(target_dir .. "/file1.txt"))
+
+            lnko.unlink_package(source_dir, "pkg1", target_dir, {})
+            assert.is_false(fs.exists(target_dir .. "/file1.txt"))
+        end)
+    end)
+end)

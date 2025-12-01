@@ -1,0 +1,68 @@
+name: CI/CD
+
+on:
+  push:
+    tags: ["*"]
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Setup Lua
+        uses: leafo/gh-actions-lua@v10
+        with:
+          luaVersion: "5.4"
+      - name: Setup LuaRocks
+        uses: leafo/gh-actions-luarocks@v4
+      - name: Install luacheck
+        run: luarocks install luacheck
+      - name: Lint
+        run: luacheck lnko/ bin/ spec/
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Setup Lua
+        uses: leafo/gh-actions-lua@v10
+        with:
+          luaVersion: "5.4"
+      - name: Setup LuaRocks
+        uses: leafo/gh-actions-luarocks@v4
+      - name: Install dependencies
+        run: |
+          luarocks install luafilesystem
+          luarocks install busted
+      - name: Run tests
+        run: busted spec/
+
+  release:
+    name: Release
+    if: github.ref_type == 'tag'
+    needs: [lint, test]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: LuaRocks Upload
+        uses: nvim-neorocks/luarocks-tag-release@v7
+        env:
+          LUAROCKS_API_KEY: ${{ secrets.LUAROCKS_API_KEY }}
+        with:
+          template: "lnko.rockspec.template"
+          dependencies: |
+            luafilesystem >= 1.8.0
+          summary: "A symlink farm manager, simpler alternative to GNU Stow"
+          detailed_description: |
+            lnko is a symlink farm manager that helps organize dotfiles and
+            configuration files. It creates symlinks from a source directory
+            to a target directory, with support for tree folding, conflict
+            handling, and two-phase execution.
