@@ -35,12 +35,12 @@ build = {
     type = "builtin",
 
     modules = {
-        ["lnko.init"] = "src/lnko/init.lua",
-        ["lnko.fs"] = "src/lnko/fs.lua",
-        ["lnko.plan"] = "src/lnko/plan.lua",
-        ["lnko.tree"] = "src/lnko/tree.lua",
-        ["lnko.output"] = "src/lnko/output.lua",
-        ["lnko.utils"] = "src/lnko/utils.lua",
+        ["lnko"] = "lnko/init.lua",
+        ["lnko.fs"] = "lnko/fs.lua",
+        ["lnko.plan"] = "lnko/plan.lua",
+        ["lnko.tree"] = "lnko/tree.lua",
+        ["lnko.output"] = "lnko/output.lua",
+        ["lnko.utils"] = "lnko/utils.lua",
     },
 
     install = {

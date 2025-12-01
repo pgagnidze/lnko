@@ -1,5 +1,4 @@
 local module = {}
-module._VERSION = "0.1.0"
 
 local fs = require("lnko.fs")
 local plan_mod = require("lnko.plan")
@@ -547,7 +546,6 @@ Options:
   --remove-orphans      Auto-remove orphan symlinks
   --keep-orphans        Auto-keep orphan symlinks
   -h, --help            Show this help
-  --version             Show version
 
 Examples:
   cd ~/dotfiles/config
@@ -565,10 +563,6 @@ Examples:
 
   lnko link -n bash
 ]])
-end
-
-function module.show_version()
-    output.print("lnko " .. module._VERSION)
 end
 
 function module.main(args)
@@ -593,9 +587,6 @@ function module.main(args)
 
         if a == "-h" or a == "--help" then
             module.show_help()
-            os.exit(0)
-        elseif a == "--version" then
-            module.show_version()
             os.exit(0)
         elseif a == "-d" or a == "--dir" then
             i = i + 1
