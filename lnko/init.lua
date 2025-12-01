@@ -421,7 +421,7 @@ function module.show_status(source_dir, target_dir, _options)
         local status_color = "green"
         local status_text = "ok"
 
-        if missing > 0 and linked == 0 then
+        if total == 0 or (missing > 0 and linked == 0) then
             status_color = "bright_black"
             status_text = "not linked"
         elseif missing > 0 then
