@@ -14,14 +14,6 @@ A symlink farm manager, simpler alternative to GNU Stow.
 luarocks install lnko
 ```
 
-Or build from source:
-
-```bash
-git clone https://github.com/pgagnidze/lnko.git
-cd lnko
-luarocks make
-```
-
 ## Usage
 
 ```bash
@@ -95,10 +87,10 @@ Like GNU Stow, lnko supports tree folding. If a target directory contains only s
 
 ```bash
 # Run from source
-LUA_PATH="./src/?.lua;./src/?/init.lua;;" lua bin/lnko.lua --help
+./bin/lnko.lua --help
 
 # Run linter
-luacheck src/ bin/
+luacheck lnko/ bin/ spec/
 
 # Run tests
 busted spec/

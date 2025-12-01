@@ -512,12 +512,11 @@ References:
 ```
 project/
   bin/                    # Executables
-  src/
-    project/              # Main module directory
-      init.lua            # Main module (require('project'))
-      submodule.lua       # Submodules
+  project/                # Main module directory
+    init.lua              # Main module (require('project'))
+    submodule.lua         # Submodules
   spec/                   # Tests (busted)
-  project-scm-1.rockspec  # LuaRocks spec
+  project.rockspec.template  # LuaRocks template (for CI)
   README.md
   LICENSE
 ```
@@ -554,7 +553,7 @@ dependencies = {
 build = {
     type = "builtin",
     modules = {
-        ["myproject.init"] = "src/myproject/init.lua",
+        ["myproject"] = "myproject/init.lua",
     },
     install = {
         bin = { ["myproject"] = "bin/myproject.lua" },
@@ -591,7 +590,7 @@ Test interfaces, not private methods.
 Use luacheck:
 
 ```bash
-luacheck src/ bin/
+luacheck myproject/ bin/ spec/
 ```
 
 Configuration in `.luacheckrc`:
