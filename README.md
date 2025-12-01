@@ -1,0 +1,109 @@
+<div align="center">
+
+# lnko
+
+A symlink farm manager, simpler alternative to GNU Stow.
+
+![License:MIT](https://img.shields.io/static/v1?label=license&message=MIT&color=blue)
+
+</div>
+
+## Installation
+
+```bash
+luarocks install lnko
+```
+
+Or build from source:
+
+```bash
+git clone https://github.com/pgagnidze/lnko.git
+cd lnko
+luarocks make
+```
+
+## Usage
+
+```bash
+# Link packages from current directory to $HOME
+lnko link bash git nvim
+
+# Specify source and target directories
+lnko link -d ~/dotfiles/config -t ~ bash git nvim
+
+# Unlink packages
+lnko unlink bash
+
+# Show status of all packages
+lnko status
+
+# Remove orphan symlinks
+lnko clean
+```
+
+### Options
+
+| Option | Description |
+|--------|-------------|
+| `-d, --dir <dir>` | Source directory containing packages (default: cwd) |
+| `-t, --target <dir>` | Target directory (default: $HOME) |
+| `-n, --dry-run` | Show what would be done |
+| `-v, --verbose` | Show debug output |
+| `-b, --backup` | Auto-backup conflicts to `<target>/.lnko-backup/` |
+| `-s, --skip` | Auto-skip conflicts |
+| `-f, --force` | Auto-overwrite conflicts (dangerous) |
+| `--ignore <pattern>` | Ignore files matching pattern (can be repeated) |
+
+### Conflict Handling
+
+When lnko encounters existing files, it prompts for action:
+
+- **[b]ackup** - Move existing file to `.lnko-backup/`
+- **[s]kip** - Leave existing file, skip this link
+- **[o]verwrite** - Replace existing file
+- **[d]iff** - Show diff between source and target
+- **[q]uit** - Abort operation
+
+Use `-b`, `-s`, or `-f` flags to auto-resolve conflicts.
+
+## How It Works
+
+lnko creates relative symlinks from a source directory (containing "packages") to a target directory. Each package is a directory whose contents mirror the target structure.
+
+```
+dotfiles/
+  bash/
+    .bashrc
+    .bash_profile
+  git/
+    .gitconfig
+```
+
+Running `lnko link -d dotfiles -t ~ bash git` creates:
+
+```
+~/.bashrc -> ../dotfiles/bash/.bashrc
+~/.bash_profile -> ../dotfiles/bash/.bash_profile
+~/.gitconfig -> ../dotfiles/git/.gitconfig
+```
+
+### Tree Folding
+
+Like GNU Stow, lnko supports tree folding. If a target directory contains only symlinks pointing to the same package, it can be "folded" into a single directory symlink. When adding files from another package, the directory is "unfolded" back into individual symlinks.
+
+## Development
+
+```bash
+# Run from source
+LUA_PATH="./src/?.lua;./src/?/init.lua;;" lua bin/lnko.lua --help
+
+# Run linter
+luacheck src/ bin/
+
+# Run tests
+busted spec/
+```
+
+## License
+
+[MIT](LICENSE)
