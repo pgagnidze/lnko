@@ -16,11 +16,40 @@ A modern GNU Stow alternative for managing dotfiles.
 
 ## Features
 
-- **Conflict handling** - Interactive prompt with backup, skip, overwrite, diff options
-- **Orphan cleanup** - `lnko clean` removes stale symlinks
-- **Tree folding** - Stow-compatible directory folding
-- **Relative symlinks** - Portable across machines
-- **Stow-compatible** - Works with existing GNU Stow symlinks
+<table>
+<tr>
+<td width="50%">
+
+**Conflict handling**
+
+Interactive prompt with backup, skip, overwrite, and diff options when files already exist.
+
+</td>
+<td width="50%">
+
+**Orphan cleanup**
+
+`lnko clean` removes stale symlinks pointing to non-existent targets.
+
+</td>
+</tr>
+<tr>
+<td width="50%">
+
+**Stow-compatible**
+
+Works with existing GNU Stow symlinks. Supports tree folding for cleaner directory structures.
+
+</td>
+<td width="50%">
+
+**Relative symlinks**
+
+Portable across machines. Symlinks use relative paths, not absolute.
+
+</td>
+</tr>
+</table>
 
 ## Installation
 
