@@ -10,6 +10,7 @@ A modern GNU Stow alternative for managing dotfiles.
   <img src="assets/demo.gif" alt="lnko demo" width="600"/>
 </p>
 
+[![CI](https://github.com/pgagnidze/lnko/actions/workflows/ci.yml/badge.svg)](https://github.com/pgagnidze/lnko/actions/workflows/ci.yml)
 ![LuaRocks](https://img.shields.io/luarocks/v/pgagnidze/lnko?color=1e3a8a)
 ![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-000080)
 
