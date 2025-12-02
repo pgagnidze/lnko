@@ -1,8 +1,14 @@
 <div align="center">
 
+<img src="assets/lnko.svg" alt="lnko logo" width="128"/>
+
 # lnko
 
 A modern GNU Stow alternative for managing dotfiles.
+
+<p align="center">
+  <img src="assets/demo.gif" alt="lnko demo" width="600"/>
+</p>
 
 ![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-blue)
 

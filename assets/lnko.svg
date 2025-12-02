@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- 6x6 block with chevron inside - Lua navy gradient -->
+  <!-- 8x8 pixel grid, 48x48 content area (8 to 56) -->
+
+  <!-- Row 1 -->
+  <rect x="8" y="8" width="8" height="8" fill="#000080"/>
+  <rect x="16" y="8" width="8" height="8" fill="#000080"/>
+  <rect x="24" y="8" width="8" height="8" fill="#000080"/>
+  <rect x="32" y="8" width="8" height="8" fill="#1e3a8a"/>
+  <rect x="40" y="8" width="8" height="8" fill="#1e3a8a"/>
+  <rect x="48" y="8" width="8" height="8" fill="#1e3a8a"/>
+
+  <!-- Row 2 - chevron starts -->
+  <rect x="8" y="16" width="8" height="8" fill="#000080"/>
+  <rect x="16" y="16" width="8" height="8" fill="#3b82f6"/>
+  <rect x="24" y="16" width="8" height="8" fill="#000080"/>
+  <rect x="32" y="16" width="8" height="8" fill="#1e3a8a"/>
+  <rect x="40" y="16" width="8" height="8" fill="#1e3a8a"/>
+  <rect x="48" y="16" width="8" height="8" fill="#3b82f6"/>
+
+  <!-- Row 3 -->
+  <rect x="8" y="24" width="8" height="8" fill="#000080"/>
+  <rect x="16" y="24" width="8" height="8" fill="#000080"/>
+  <rect x="24" y="24" width="8" height="8" fill="#3b82f6"/>
+  <rect x="32" y="24" width="8" height="8" fill="#1e3a8a"/>
+  <rect x="40" y="24" width="8" height="8" fill="#3b82f6"/>
+  <rect x="48" y="24" width="8" height="8" fill="#3b82f6"/>
+
+  <!-- Row 4 -->
+  <rect x="8" y="32" width="8" height="8" fill="#1e3a8a"/>
+  <rect x="16" y="32" width="8" height="8" fill="#1e3a8a"/>
+  <rect x="24" y="32" width="8" height="8" fill="#1e3a8a"/>
+  <rect x="32" y="32" width="8" height="8" fill="#60a5fa"/>
+  <rect x="40" y="32" width="8" height="8" fill="#3b82f6"/>
+  <rect x="48" y="32" width="8" height="8" fill="#3b82f6"/>
+
+  <!-- Row 5 -->
+  <rect x="8" y="40" width="8" height="8" fill="#1e3a8a"/>
+  <rect x="16" y="40" width="8" height="8" fill="#1e3a8a"/>
+  <rect x="24" y="40" width="8" height="8" fill="#3b82f6"/>
+  <rect x="32" y="40" width="8" height="8" fill="#3b82f6"/>
+  <rect x="40" y="40" width="8" height="8" fill="#3b82f6"/>
+  <rect x="48" y="40" width="8" height="8" fill="#60a5fa"/>
+
+  <!-- Row 6 -->
+  <rect x="8" y="48" width="8" height="8" fill="#1e3a8a"/>
+  <rect x="16" y="48" width="8" height="8" fill="#3b82f6"/>
+  <rect x="24" y="48" width="8" height="8" fill="#3b82f6"/>
+  <rect x="32" y="48" width="8" height="8" fill="#3b82f6"/>
+  <rect x="40" y="48" width="8" height="8" fill="#60a5fa"/>
+  <rect x="48" y="48" width="8" height="8" fill="#60a5fa"/>
+</svg>

@@ -40,6 +40,5 @@ luac.out
 *.hex
 
 .DS_Store
-CLAUDE.local.md
-DIST.local.md
+*.local.md
 **/.claude/settings.local.json
