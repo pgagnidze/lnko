@@ -7,7 +7,7 @@ source = {
 }
 
 description = {
-    summary = "A symlink farm manager, simpler alternative to GNU Stow",
+    summary = "A modern GNU Stow alternative for managing dotfiles",
     homepage = "https://github.com/pgagnidze/lnko",
     license = "GPL-3.0",
 }

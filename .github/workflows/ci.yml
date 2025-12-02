@@ -58,9 +58,8 @@ jobs:
           LUAROCKS_API_KEY: ${{ secrets.LUAROCKS_API_KEY }}
         with:
           template: "lnko.rockspec.template"
-          summary: "A symlink farm manager, simpler alternative to GNU Stow"
+          summary: "A modern GNU Stow alternative for managing dotfiles"
           detailed_description: |
-            lnko is a symlink farm manager that helps organize dotfiles and
-            configuration files. It creates symlinks from a source directory
-            to a target directory, with support for tree folding, conflict
-            handling, and two-phase execution.
+            lnko helps manage dotfiles by creating relative symlinks from a
+            source directory to a target directory. Features include conflict
+            handling, orphan cleanup, tree folding, and Stow compatibility.
