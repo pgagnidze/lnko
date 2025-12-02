@@ -104,7 +104,7 @@ install_luarocks() {
 
 install_lnko() {
     log info "Installing lnko..."
-    luarocks install lnko
+    sudo luarocks install lnko
 }
 
 verify_install() {

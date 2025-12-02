@@ -62,7 +62,7 @@ curl -fsSL https://raw.githubusercontent.com/pgagnidze/lnko/main/install.sh | sh
 Or if you have LuaRocks:
 
 ```bash
-luarocks install lnko
+sudo luarocks install lnko
 ```
 
 ## Usage
