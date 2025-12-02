@@ -4,7 +4,7 @@
 
 # lnko
 
-A modern GNU Stow alternative for managing dotfiles.
+Simple Stow-compatible dotfile manager.
 
 <p align="center">
   <img src="assets/demo.gif" alt="lnko demo" width="600"/>

@@ -534,7 +534,7 @@ end
 -- cli --
 
 function module.show_help()
-    output.write(output.color("bold"), "lnko", output.reset(), " - a modern GNU Stow alternative for managing dotfiles\n")
+    output.write(output.color("bold"), "lnko", output.reset(), " - a simple Stow-compatible dotfile manager\n")
     output.write([[
 Usage: lnko <command> [options] [packages...]
 
