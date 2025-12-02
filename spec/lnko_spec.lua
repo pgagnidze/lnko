@@ -281,4 +281,24 @@ describe("lnko", function()
             assert.is_falsy(fs.is_symlink(target .. "/file.txt"))
         end)
     end)
+
+    describe("orphan detection", function()
+        it("should detect orphan symlinks when source is deleted", function()
+            local source = test_dir .. "/orphan_source"
+            local target = test_dir .. "/orphan_target"
+
+            os.execute("mkdir -p " .. source .. "/pkg")
+            os.execute("mkdir -p " .. target)
+            os.execute("echo 'file' > " .. source .. "/pkg/file.txt")
+
+            lnko.link_package(source, "pkg", target, { skip = true })
+            assert.is_true(fs.is_symlink(target .. "/file.txt"))
+
+            os.execute("rm " .. source .. "/pkg/file.txt")
+
+            local orphans = lnko.find_orphans(source, target)
+            assert.are.equal(1, #orphans)
+            assert.are.equal(target .. "/file.txt", orphans[1].link)
+        end)
+    end)
 end)

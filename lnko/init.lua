@@ -447,34 +447,40 @@ function module.show_status(source_dir, target_dir, _options)
     end
 end
 
-function module.clean_orphans(source_dir, target_dir, options)
-    options = options or {}
-
-    log.info("checking for orphan symlinks")
-
+function module.find_orphans(source_dir, target_dir)
     local source_abs = fs.absolute(source_dir)
+    local target_abs = fs.absolute(target_dir)
     local orphans = {}
 
-    local function find_orphans(dir)
+    local function scan(dir)
         if not fs.is_directory(dir) then return end
 
         local entries = fs.dir(dir)
         for _, entry in ipairs(entries) do
             local path = fs.join(dir, entry)
             if fs.is_symlink(path) then
-                local resolved = fs.resolve_symlink(path)
+                local resolved = fs.absolute(fs.resolve_symlink(path))
                 if resolved and resolved:sub(1, #source_abs) == source_abs then
                     if not fs.exists(resolved) then
                         orphans[#orphans + 1] = { link = path, target = resolved }
                     end
                 end
             elseif fs.is_directory(path) then
-                find_orphans(path)
+                scan(path)
             end
         end
     end
 
-    find_orphans(target_dir)
+    scan(target_abs)
+    return orphans
+end
+
+function module.clean_orphans(source_dir, target_dir, options)
+    options = options or {}
+
+    log.info("checking for orphan symlinks")
+
+    local orphans = module.find_orphans(source_dir, target_dir)
 
     if #orphans == 0 then
         log.success("no orphans found")
