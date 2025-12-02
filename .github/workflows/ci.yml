@@ -58,8 +58,6 @@ jobs:
           LUAROCKS_API_KEY: ${{ secrets.LUAROCKS_API_KEY }}
         with:
           template: "lnko.rockspec.template"
-          dependencies: |
-            luafilesystem >= 1.8.0
           summary: "A symlink farm manager, simpler alternative to GNU Stow"
           detailed_description: |
             lnko is a symlink farm manager that helps organize dotfiles and

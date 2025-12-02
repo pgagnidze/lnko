@@ -1,19 +1,15 @@
-local git_ref = "$git_ref"
-local modrev = "$modrev"
-local specrev = "$specrev"
-
-local repo_url = "$repo_url"
-
 rockspec_format = "3.0"
-package = "$package"
-version = modrev .. "-" .. specrev
+package = "lnko"
+version = "scm-1"
+
+source = {
+    url = "git+https://github.com/pgagnidze/lnko.git",
+}
 
 description = {
-    summary = "$summary",
-    detailed = $detailed_description,
-    labels = $labels,
-    homepage = "$homepage",
-    $license
+    summary = "A symlink farm manager, simpler alternative to GNU Stow",
+    homepage = "https://github.com/pgagnidze/lnko",
+    license = "GPL-3.0",
 }
 
 dependencies = {
@@ -25,20 +21,8 @@ test_dependencies = {
     "busted",
 }
 
-source = {
-    url = repo_url .. "/archive/" .. git_ref .. ".zip",
-    dir = "$repo_name-" .. "$archive_dir_suffix",
-}
-
-if modrev == "scm" or modrev == "dev" then
-    source = {
-        url = repo_url:gsub("https", "git")
-    }
-end
-
 build = {
     type = "builtin",
-
     modules = {
         ["lnko"] = "lnko/init.lua",
         ["lnko.fs"] = "lnko/fs.lua",
@@ -47,7 +31,6 @@ build = {
         ["lnko.output"] = "lnko/output.lua",
         ["lnko.utils"] = "lnko/utils.lua",
     },
-
     install = {
         bin = {
             ["lnko"] = "bin/lnko.lua",
