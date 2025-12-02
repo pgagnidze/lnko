@@ -534,10 +534,8 @@ end
 -- cli --
 
 function module.show_help()
-    output.write(output.color("bold"), "lnko", output.reset(), " - symlink farm manager\n")
+    output.write(output.color("bold"), "lnko", output.reset(), " - a modern GNU Stow alternative for managing dotfiles\n")
     output.write([[
-A simpler alternative to GNU Stow.
-
 Usage: lnko <command> [options] [packages...]
 
 Commands:
