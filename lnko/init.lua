@@ -107,6 +107,8 @@ end
 
 function module.plan_link(source_dir, package, target_dir, options)
     options = options or {}
+    source_dir = fs.absolute(source_dir)
+    target_dir = fs.absolute(target_dir)
     local pkg_dir = fs.join(source_dir, package)
     local plan = plan_mod.new()
 
@@ -241,6 +243,8 @@ end
 
 function module.plan_unlink(source_dir, package, target_dir, options)
     options = options or {}
+    source_dir = fs.absolute(source_dir)
+    target_dir = fs.absolute(target_dir)
     local pkg_dir = fs.join(source_dir, package)
     local plan = plan_mod.new()
 
@@ -359,6 +363,8 @@ function module.unlink_package(source_dir, package, target_dir, options)
 end
 
 function module.show_status(source_dir, target_dir, _options)
+    source_dir = fs.absolute(source_dir)
+    target_dir = fs.absolute(target_dir)
     local packages = list_packages(source_dir)
 
     if #packages == 0 then
