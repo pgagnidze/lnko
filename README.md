@@ -130,9 +130,17 @@ Running `lnko link -d dotfiles -t ~ bash git` creates:
 ~/.gitconfig -> ../dotfiles/git/.gitconfig
 ```
 
-### Tree Folding
+## Comparison with GNU Stow
 
-Like GNU Stow, lnko supports tree folding. If a target directory contains only symlinks pointing to the same package, it can be "folded" into a single directory symlink. When adding files from another package, the directory is "unfolded" back into individual symlinks.
+Both use relative symlinks, tree folding, ignore patterns, and dry-run mode. lnko adds:
+
+| Feature | Description |
+|---------|-------------|
+| Interactive conflicts | Prompt with backup, skip, overwrite, diff |
+| Orphan cleanup | Find and remove broken symlinks |
+| Status command | See state of all packages |
+
+See [GNU Stow documentation](https://www.gnu.org/software/stow/manual/) for additional Stow features.
 
 ## Development
 
