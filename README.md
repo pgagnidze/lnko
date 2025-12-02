@@ -4,7 +4,7 @@
 
 # lnko
 
-Simple Stow-compatible dotfile manager.
+Simple stow-like dotfile linker.
 
 <p align="center">
   <img src="assets/demo.gif" alt="lnko demo" width="600"/>

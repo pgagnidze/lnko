@@ -58,7 +58,7 @@ jobs:
           LUAROCKS_API_KEY: ${{ secrets.LUAROCKS_API_KEY }}
         with:
           template: "lnko.rockspec.template"
-          summary: "Simple Stow-compatible dotfile manager"
+          summary: "Simple stow-like dotfile linker"
           detailed_description: |
             lnko helps manage dotfiles by creating relative symlinks from a
             source directory to a target directory. Features include conflict

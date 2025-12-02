@@ -7,7 +7,7 @@ source = {
 }
 
 description = {
-    summary = "Simple Stow-compatible dotfile manager",
+    summary = "Simple stow-like dotfile linker",
     homepage = "https://github.com/pgagnidze/lnko",
     license = "GPL-3.0",
 }
