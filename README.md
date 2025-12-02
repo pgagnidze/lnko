@@ -11,6 +11,12 @@ A symlink farm manager, simpler alternative to GNU Stow.
 ## Installation
 
 ```bash
+curl -fsSL https://raw.githubusercontent.com/pgagnidze/lnko/main/install.sh | sh
+```
+
+Or if you have LuaRocks:
+
+```bash
 luarocks install lnko
 ```
 
