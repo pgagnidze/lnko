@@ -4,7 +4,7 @@
 
 A symlink farm manager, simpler alternative to GNU Stow.
 
-![License:GPL-3.0](https://img.shields.io/static/v1?label=license&message=GPL--3.0&color=blue)
+![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-blue)
 
 </div>
 
