@@ -2,11 +2,18 @@
 
 # lnko
 
-A symlink farm manager, simpler alternative to GNU Stow.
+A modern GNU Stow alternative for managing dotfiles.
 
 ![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-blue)
 
 </div>
+
+## Features
+
+- **Conflict handling** - Interactive prompt with backup, skip, overwrite, diff options
+- **Orphan cleanup** - `lnko clean` removes stale symlinks
+- **Tree folding** - Stow-compatible directory folding
+- **Relative symlinks** - Portable across machines
 
 ## Installation
 
