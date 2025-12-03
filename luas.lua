@@ -50,14 +50,14 @@ end
 
 local function show_help()
     print(string.format([[
-%sluas%s - lua static build
+%sluas%s - lua standalone build
 
-Build a standalone static binary from a LuaRocks project or Lua files.
+Build a standalone binary from a LuaRocks project or Lua files.
 
 Usage: lua luas.lua [options] [output-name]
 
 Arguments:
-    output-name     Name of output binary (default: <package>-static)
+    output-name     Name of output binary (default: <package>)
 
 Options:
     -h, --help      Show this help message
@@ -635,7 +635,7 @@ end
 -- build binary --
 
 local function build_binary(spec, output_name, lua_incdir, lua_static_lib, clib_files)
-    log("info", "building static binary")
+    log("info", "building standalone binary")
 
     local lua_source_files = {}
 
@@ -815,7 +815,7 @@ local function main(args)
     setup_colors()
     local opts = parse_args(args)
 
-    print(colors.bold .. "lua static build" .. colors.reset .. "\n")
+    print(colors.bold .. "lua standalone build" .. colors.reset .. "\n")
 
     mkdir(BUILD_DIR)
 
@@ -829,7 +829,7 @@ local function main(args)
         spec = build_spec_from_opts(opts)
     end
 
-    local output_name = opts.output or (spec.name .. "-static")
+    local output_name = opts.output or spec.name
 
     local os_name, arch = detect_os()
     log("info", "detected " .. os_name .. " " .. arch)

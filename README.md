@@ -55,14 +55,20 @@ Portable across machines. Symlinks use relative paths, not absolute.
 
 ## Installation
 
+### Standalone binary (recommended)
+
+Downloads a self-contained binary with no dependencies:
+
 ```bash
-curl -fsSL https://raw.githubusercontent.com/pgagnidze/lnko/main/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/pgagnidze/lnko/main/install.sh | bash
 ```
 
-Or if you have LuaRocks:
+### LuaRocks
+
+Installs as a Lua module (requires Lua and LuaFileSystem):
 
 ```bash
-sudo luarocks install lnko
+luarocks --local install lnko
 ```
 
 ## Usage
