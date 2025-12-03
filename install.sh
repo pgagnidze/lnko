@@ -47,13 +47,6 @@ log() {
     fi
 }
 
-check_prerequisites() {
-    if ! command -v curl &>/dev/null; then
-        log error "curl is not installed"
-        exit 1
-    fi
-}
-
 detect_platform() {
     local os arch
     os="$(uname -s)"
@@ -136,7 +129,6 @@ main() {
     setup_colors
     printf "%slnko installer%s\n\n" "$bold" "$reset"
 
-    check_prerequisites
     detect_platform
     get_latest_version
     download_binary
