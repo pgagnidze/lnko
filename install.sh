@@ -2,6 +2,10 @@
 
 set -euo pipefail
 
+REPO="pgagnidze/lnko"
+TMP_DIR=$(mktemp -d)
+trap 'rm -rf "$TMP_DIR"' EXIT INT TERM
+
 setup_colors() {
     if [[ -n "${FORCE_COLOR:-}" ]]; then
         USE_COLOR=true
@@ -14,13 +18,14 @@ setup_colors() {
     fi
 
     if [[ "$USE_COLOR" == true ]]; then
+        red=$'\e[31m'
         green=$'\e[32m'
         yellow=$'\e[33m'
         blue=$'\e[34m'
-        red=$'\e[31m'
+        bold=$'\e[1m'
         reset=$'\e[0m'
     else
-        green='' yellow='' blue='' red='' reset=''
+        red='' green='' yellow='' blue='' bold='' reset=''
     fi
 }
 
@@ -42,88 +47,102 @@ log() {
     fi
 }
 
-check_lua() {
-    if command -v lua &>/dev/null; then
-        log info "Lua found: $(lua -v 2>&1 | head -1)"
-        return
-    fi
-
-    log warn "Lua not found. Installing..."
-    install_lua
-}
-
-install_lua() {
-    if command -v apt-get &>/dev/null; then
-        sudo apt-get update && sudo apt-get install -y lua5.4 liblua5.4-dev
-    elif command -v dnf &>/dev/null; then
-        sudo dnf install -y lua lua-devel
-    elif command -v pacman &>/dev/null; then
-        sudo pacman -S --noconfirm lua
-    elif command -v apk &>/dev/null; then
-        sudo apk add lua5.4 lua5.4-dev
-    elif command -v brew &>/dev/null; then
-        brew install lua
-    elif command -v zypper &>/dev/null; then
-        sudo zypper install -y lua54 lua54-devel
-    else
-        log error "Could not detect package manager"
-        log info "Install Lua manually: https://www.lua.org/download.html"
+check_prerequisites() {
+    if ! command -v curl &>/dev/null; then
+        log error "curl is not installed"
         exit 1
     fi
 }
 
-check_luarocks() {
-    if command -v luarocks &>/dev/null; then
-        log info "LuaRocks found: $(luarocks --version | head -1)"
-        return
-    fi
+detect_platform() {
+    local os arch
+    os="$(uname -s)"
+    arch="$(uname -m)"
 
-    log warn "LuaRocks not found. Installing..."
-    install_luarocks
+    case "$os" in
+        Linux) PLATFORM_OS="linux" ;;
+        Darwin) PLATFORM_OS="darwin" ;;
+        *) log error "unsupported os: $os"; exit 1 ;;
+    esac
+
+    case "$arch" in
+        x86_64) PLATFORM_ARCH="x86_64" ;;
+        aarch64 | arm64) PLATFORM_ARCH="arm64" ;;
+        *) log error "unsupported architecture: $arch"; exit 1 ;;
+    esac
+
+    PLATFORM="${PLATFORM_OS}_${PLATFORM_ARCH}"
+    log info "detected platform: $PLATFORM"
 }
 
-install_luarocks() {
-    if command -v apt-get &>/dev/null; then
-        sudo apt-get install -y luarocks
-    elif command -v dnf &>/dev/null; then
-        sudo dnf install -y luarocks
-    elif command -v pacman &>/dev/null; then
-        sudo pacman -S --noconfirm luarocks
-    elif command -v apk &>/dev/null; then
-        sudo apk add luarocks5.4
-    elif command -v brew &>/dev/null; then
-        brew install luarocks
-    elif command -v zypper &>/dev/null; then
-        sudo zypper install -y lua54-luarocks
-    else
-        log error "Could not detect package manager"
-        log info "Install LuaRocks manually: https://luarocks.org/#quick-start"
+get_latest_version() {
+    log info "fetching latest release"
+    local url="https://api.github.com/repos/${REPO}/releases/latest"
+    local response
+
+    if ! response=$(curl -fsSL "$url"); then
+        log error "failed to fetch release info"
         exit 1
     fi
+
+    VERSION="${response##*\"tag_name\": \"}"
+    VERSION="${VERSION%%\"*}"
+
+    if [[ -z "$VERSION" || "$VERSION" == "$response" ]]; then
+        log error "failed to parse version"
+        exit 1
+    fi
+
+    log info "latest version: $VERSION"
 }
 
-install_lnko() {
-    log info "Installing lnko..."
-    sudo luarocks install lnko
+download_binary() {
+    local binary_name="lnko-${PLATFORM}"
+    local url="https://github.com/${REPO}/releases/download/${VERSION}/${binary_name}"
+
+    log info "downloading $binary_name"
+    if ! curl -fsSL -o "${TMP_DIR}/lnko" "$url"; then
+        log error "failed to download binary"
+        log info "url: $url"
+        exit 1
+    fi
+
+    chmod +x "${TMP_DIR}/lnko"
+}
+
+install_binary() {
+    local install_dir="${HOME}/.local/bin"
+    mkdir -p "$install_dir"
+    cp "${TMP_DIR}/lnko" "${install_dir}/lnko"
+    log success "installed to ${install_dir}/lnko"
+
+    if [[ ":$PATH:" != *":$install_dir:"* ]]; then
+        log warn "$install_dir is not in PATH"
+        log info "add to your shell config:"
+        printf "  export PATH=\"\$PATH:%s\"\n" "$install_dir"
+    fi
 }
 
 verify_install() {
     if command -v lnko &>/dev/null; then
-        log success "Installed successfully!"
-        log info "Run 'lnko --help' to get started"
-    else
-        log warn "lnko installed but not in PATH"
-        log info "Add LuaRocks bin to your PATH:"
-        printf "  export PATH=\"\$PATH:\$(luarocks path --lr-bin)\"\n"
+        log success "lnko $VERSION installed"
+        printf "\n%sget started:%s\n" "$bold" "$reset"
+        printf "  lnko --help\n"
+        printf "\n%sdocs:%s https://github.com/%s\n" "$bold" "$reset" "$REPO"
     fi
 }
 
 main() {
     setup_colors
-    check_lua
-    check_luarocks
-    install_lnko
+    printf "%slnko installer%s\n\n" "$bold" "$reset"
+
+    check_prerequisites
+    detect_platform
+    get_latest_version
+    download_binary
+    install_binary
     verify_install
+
     exit 0
 }
 
