@@ -766,7 +766,7 @@ local function check_dependencies()
         os.exit(1)
     end
 
-    if not execute("ar --version >/dev/null 2>&1") then
+    if not execute("which ar >/dev/null 2>&1") then
         log("error", "ar not found")
         os.exit(1)
     end
