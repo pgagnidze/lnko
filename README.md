@@ -136,6 +136,10 @@ Running `lnko link -d dotfiles -t ~ bash git` creates:
 ~/.gitconfig -> ../dotfiles/git/.gitconfig
 ```
 
+## Example
+
+See [pgagnidze/dotfiles](https://github.com/pgagnidze/dotfiles) for a real-world example using lnko.
+
 ## Comparison with GNU Stow
 
 Both use relative symlinks, tree folding, ignore patterns, and dry-run mode. lnko adds:
