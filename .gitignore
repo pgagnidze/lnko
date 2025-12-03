@@ -39,6 +39,9 @@ luac.out
 *.x86_64
 *.hex
 
+# Build directory
+.build/
+
 .DS_Store
 *.local.md
 **/.claude/settings.local.json
