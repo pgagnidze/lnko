@@ -1,0 +1,93 @@
+name: 'luas'
+description: 'Build standalone Lua binaries'
+author: 'pgagnidze'
+
+branding:
+  icon: 'package'
+  color: 'blue'
+
+inputs:
+  output:
+    description: 'Output binary name'
+    required: false
+  rockspec:
+    description: 'Path to rockspec file'
+    required: false
+  main:
+    description: 'Main Lua script (entry point)'
+    required: false
+  lua:
+    description: 'Lua module files (space-separated, supports globs)'
+    required: false
+  clib:
+    description: 'Static C libraries to link (space-separated)'
+    required: false
+  lfs:
+    description: 'Include LuaFileSystem'
+    required: false
+    default: 'false'
+
+outputs:
+  binary:
+    description: 'Path to the built binary'
+    value: ${{ steps.build.outputs.binary }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Install Lua (Linux)
+      if: runner.os == 'Linux'
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y lua5.4 liblua5.4-dev
+
+    - name: Install Lua (macOS)
+      if: runner.os == 'macOS'
+      shell: bash
+      run: brew install lua
+
+    - name: Build binary
+      id: build
+      shell: bash
+      run: |
+        LUAS_SCRIPT="${{ github.action_path }}/luas"
+
+        ARGS=""
+
+        if [ "${{ inputs.lfs }}" = "true" ]; then
+          ARGS="$ARGS --lfs"
+        fi
+
+        if [ -n "${{ inputs.rockspec }}" ]; then
+          ARGS="$ARGS --rockspec ${{ inputs.rockspec }}"
+        fi
+
+        if [ -n "${{ inputs.main }}" ]; then
+          ARGS="$ARGS --main ${{ inputs.main }}"
+        fi
+
+        if [ -n "${{ inputs.lua }}" ]; then
+          for f in ${{ inputs.lua }}; do
+            ARGS="$ARGS --lua $f"
+          done
+        fi
+
+        if [ -n "${{ inputs.clib }}" ]; then
+          for lib in ${{ inputs.clib }}; do
+            ARGS="$ARGS --clib $lib"
+          done
+        fi
+
+        if [ -n "${{ inputs.output }}" ]; then
+          ARGS="$ARGS ${{ inputs.output }}"
+        fi
+
+        lua "$LUAS_SCRIPT" $ARGS
+
+        OUTPUT="${{ inputs.output }}"
+        if [ -z "$OUTPUT" ]; then
+          OUTPUT=$(ls *.rockspec 2>/dev/null | head -1 | sed 's/-.*$//' || echo "output")
+        fi
+
+        echo "binary=$OUTPUT" >> $GITHUB_OUTPUT
