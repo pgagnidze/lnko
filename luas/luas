@@ -191,6 +191,7 @@ local function find_lua_paths(os_name)
         local search_paths = {
             "/usr/lib64", "/usr/lib/x86_64-linux-gnu", "/usr/lib/aarch64-linux-gnu",
             "/usr/lib", "/usr/local/lib", "/opt/homebrew/lib",
+            "/usr/lib/lua5.4",
         }
         local lib_names = { "liblua.a", "liblua5.4.a", "liblua54.a" }
 
@@ -597,7 +598,11 @@ end
     end
 
     local link_with_libdl = ""
-    if UNAME == "Linux" or UNAME == "SunOS" then
+    local static_flag = ""
+    local is_musl = file_exists("/lib/ld-musl-x86_64.so.1") or file_exists("/lib/ld-musl-aarch64.so.1")
+    if is_musl then
+        static_flag = "-static"
+    elseif UNAME == "Linux" or UNAME == "SunOS" then
         link_with_libdl = "-ldl"
     end
 
@@ -611,6 +616,7 @@ end
     local compile_command = table.concat({
         CC,
         "-Os",
+        static_flag,
         outfilename,
         table.concat(module_libs, " "),
         table.concat(dep_library_files, " "),

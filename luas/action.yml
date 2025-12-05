@@ -35,8 +35,8 @@ outputs:
 runs:
   using: 'composite'
   steps:
-    - name: Install Lua (Linux)
-      if: runner.os == 'Linux'
+    - name: Install Lua (Linux - apt)
+      if: runner.os == 'Linux' && hashFiles('/etc/debian_version') != ''
       shell: bash
       run: |
         sudo apt-get update
