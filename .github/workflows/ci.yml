@@ -52,28 +52,30 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/')
     needs: [lint, test]
     runs-on: ${{ matrix.os }}
-    container: ${{ matrix.container || '' }}
     strategy:
       fail-fast: false
       matrix:
         include:
           - target: linux_x86_64
             os: ubuntu-latest
-            container: alpine:latest
           - target: linux_arm64
             os: ubuntu-24.04-arm
-            container: alpine:latest
           - target: darwin_x86_64
             os: macos-15-intel
           - target: darwin_arm64
             os: macos-latest
     steps:
-      - name: Install Alpine dependencies
-        if: matrix.container == 'alpine:latest'
-        run: apk add --no-cache build-base lua5.4 lua5.4-dev lua5.4-libs git
       - name: Checkout
         uses: actions/checkout@v6
-      - name: Build
+      - name: Build (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          docker run --rm -v "$PWD:/app" -w /app alpine:latest sh -c "
+            apk add --no-cache build-base lua5.4 lua5.4-dev lua5.4-libs git &&
+            lua5.4 luas/luas --lfs lnko-${{ matrix.target }}
+          "
+      - name: Build (macOS)
+        if: runner.os == 'macOS'
         uses: ./luas
         with:
           output: lnko-${{ matrix.target }}
