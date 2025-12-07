@@ -45,3 +45,6 @@ luac.out
 .DS_Store
 *.local.md
 **/.claude/settings.local.json
+
+# Symlinked style guides
+docs/LUA.style.md
