@@ -21,6 +21,32 @@ local function is_absolute(path)
     return false
 end
 
+local function windows_symlink_info(path)
+    path = path:gsub("/", "\\")
+    local dir_path = path:match("(.+)\\[^\\]+$") or "."
+    local name = path:match("([^\\]+)$") or path
+
+    local handle = io.popen('dir /AL "' .. dir_path .. '" 2>nul')
+    if not handle then
+        return false, nil
+    end
+
+    local output = handle:read("*a")
+    handle:close()
+
+    for line in output:gmatch("[^\r\n]+") do
+        local link_name, target = line:match("<SYMLINK[D]?>%s+([^%[]+)%s+%[(.+)%]")
+        if link_name then
+            link_name = link_name:match("^%s*(.-)%s*$")
+            if link_name == name then
+                return true, to_forward_slash(target)
+            end
+        end
+    end
+
+    return false, nil
+end
+
 function module.exists(path)
     return lfs.attributes(path) ~= nil
 end
@@ -36,14 +62,22 @@ function module.is_file(path)
 end
 
 function module.is_symlink(path)
-    local ok, attr = pcall(lfs.symlinkattributes, path)
-    return ok and attr and attr.mode == "link"
+    if IS_WINDOWS then
+        local is_link = windows_symlink_info(path)
+        return is_link
+    end
+    local attr = lfs.symlinkattributes(path)
+    return attr and attr.mode == "link"
 end
 
 function module.symlink_target(path)
-    local ok, attr = pcall(lfs.symlinkattributes, path)
-    if ok and attr and attr.mode == "link" then
-        return to_forward_slash(attr.target)
+    if IS_WINDOWS then
+        local is_link, target = windows_symlink_info(path)
+        return is_link and target or nil
+    end
+    local attr = lfs.symlinkattributes(path)
+    if attr and attr.mode == "link" then
+        return attr.target
     end
     return nil
 end
