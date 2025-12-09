@@ -9,13 +9,21 @@ jobs:
       matrix:
         include:
           - os: ubuntu-latest
+            binary: lnko-linux_x86_64
           - os: ubuntu-24.04-arm
+            binary: lnko-linux_arm64
           - os: macos-latest
+            binary: lnko-macos_arm64
           - os: macos-15-intel
+            binary: lnko-macos_x86_64
     runs-on: ${{ matrix.os }}
     steps:
-      - name: Install lnko
-        run: curl -sSf https://raw.githubusercontent.com/pgagnidze/lnko/main/install.sh | sh
+      - name: Download lnko
+        run: |
+          curl -fsSL -o lnko "https://github.com/pgagnidze/lnko/releases/latest/download/${{ matrix.binary }}"
+          chmod +x lnko
+          mkdir -p "$HOME/.local/bin"
+          mv lnko "$HOME/.local/bin/"
 
       - name: Test lnko
         run: |
