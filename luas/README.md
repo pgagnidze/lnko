@@ -80,6 +80,7 @@ C dependencies listed in rockspec are automatically built:
 | macos-x86_64 | Mach-O x86_64 |
 | macos-arm64 | Mach-O arm64 |
 | windows-x86_64 | PE32+ executable |
+| windows-arm64 | PE32+ executable (ARM64) |
 
 Linux binaries are fully static (musl libc). No runtime dependencies.
 

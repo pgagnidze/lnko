@@ -59,7 +59,7 @@ jobs:
         uses: ./luas
         with:
           output: lnko
-          targets: linux-x86_64 linux-arm64 macos-x86_64 macos-arm64 windows-x86_64
+          targets: linux-x86_64 linux-arm64 macos-x86_64 macos-arm64 windows-x86_64 windows-arm64
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:

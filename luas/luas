@@ -25,6 +25,7 @@ local TARGET_MAP = {
     ["darwin-x86_64"] = "x86_64-macos",
     ["darwin-arm64"] = "aarch64-macos",
     ["windows-x86_64"] = "x86_64-windows-gnu",
+    ["windows-arm64"] = "aarch64-windows-gnu",
 }
 
 local LUA_VERSION = "5.4.7"
@@ -179,7 +180,7 @@ Options:
                     Available targets:
                       linux-x86_64, linux-arm64
                       macos-x86_64, macos-arm64 (darwin-* also works)
-                      windows-x86_64
+                      windows-x86_64, windows-arm64
 
 Environment:
     BUILD_DIR       Build directory (default: .build)
