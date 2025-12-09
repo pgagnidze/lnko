@@ -29,7 +29,6 @@ build = {
         ["lnko.plan"] = "lnko/plan.lua",
         ["lnko.tree"] = "lnko/tree.lua",
         ["lnko.output"] = "lnko/output.lua",
-        ["lnko.utils"] = "lnko/utils.lua",
     },
     install = {
         bin = {

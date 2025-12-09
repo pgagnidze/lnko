@@ -12,6 +12,8 @@ function module.new()
     return {
         tasks = {},
         conflicts = {},
+        link_tasks = {},
+        dir_tasks = {},
     }
 end
 
@@ -22,6 +24,16 @@ function module.add_task(plan, action, path, source, options)
         source = source,
         options = options or {},
     }
+
+    if action == module.ACTION_LINK then
+        plan.link_tasks[path] = { action = "create", source = source }
+    elseif action == module.ACTION_UNLINK then
+        plan.link_tasks[path] = { action = "remove" }
+    elseif action == module.ACTION_MKDIR then
+        plan.dir_tasks[path] = "create"
+    elseif action == module.ACTION_RMDIR then
+        plan.dir_tasks[path] = "remove"
+    end
 end
 
 function module.add_conflict(plan, path, message)
@@ -41,6 +53,63 @@ end
 
 function module.get_tasks(plan)
     return plan.tasks
+end
+
+function module.parent_link_scheduled_for_removal(plan, path)
+    local prefix = ""
+    for part in path:gmatch("[^/]+") do
+        prefix = prefix == "" and part or (prefix .. "/" .. part)
+        local task = plan.link_tasks[prefix]
+        if task and task.action == "remove" then
+            return true
+        end
+    end
+    return false
+end
+
+function module.is_a_link(plan, path)
+    local task = plan.link_tasks[path]
+    if task then
+        if task.action == "remove" then
+            return false
+        elseif task.action == "create" then
+            return true
+        end
+    end
+
+    if fs.is_symlink(path) then
+        return not module.parent_link_scheduled_for_removal(plan, path)
+    end
+
+    return false
+end
+
+function module.read_a_link(plan, path)
+    local task = plan.link_tasks[path]
+    if task and task.action == "create" then
+        return task.source
+    end
+
+    if fs.is_symlink(path) then
+        return fs.symlink_target(path)
+    end
+
+    return nil
+end
+
+function module.is_a_dir(plan, path)
+    local action = plan.dir_tasks[path]
+    if action == "remove" then
+        return false
+    elseif action == "create" then
+        return true
+    end
+
+    if module.parent_link_scheduled_for_removal(plan, path) then
+        return false
+    end
+
+    return fs.is_directory(path) and not fs.is_symlink(path)
 end
 
 function module.execute(plan, options)
@@ -97,11 +166,6 @@ function module.execute(plan, options)
     end
 
     return executed, failed
-end
-
-function module.clear(plan)
-    plan.tasks = {}
-    plan.conflicts = {}
 end
 
 return module

@@ -130,10 +130,11 @@ function module.plan_link(source_dir, package, target_dir, options)
             if matches_ignore(relative_path, options.ignore or {}) then
                 log.debug("ignoring " .. relative_path, options.verbose)
             elseif fs.is_directory(source_path) and not fs.is_symlink(source_path) then
-                if fs.is_symlink(target_path) then
-                    if tree.should_unfold(target_path, source_path, source_dir) then
+                if plan_mod.is_a_link(plan, target_path) then
+                    local existing_pkg_path = tree.can_unfold(target_path, source_path, source_dir, plan)
+                    if existing_pkg_path then
                         log.debug("unfolding " .. target_path, options.verbose)
-                        tree.unfold(target_path, plan)
+                        tree.unfold(target_path, existing_pkg_path, plan)
                         process_dir(source_path, target_path)
                     else
                         local resolved = fs.resolve_symlink(target_path)
@@ -156,7 +157,7 @@ function module.plan_link(source_dir, package, target_dir, options)
                             end
                         end
                     end
-                elseif fs.is_directory(target_path) then
+                elseif plan_mod.is_a_dir(plan, target_path) then
                     process_dir(source_path, target_path)
                 elseif fs.exists(target_path) then
                     local action = ask_conflict(target_path, options)
@@ -182,7 +183,7 @@ function module.plan_link(source_dir, package, target_dir, options)
                     log.debug("planned folder link " .. target_path .. " -> " .. rel_source, options.verbose)
                 end
             else
-                if fs.is_symlink(target_path) then
+                if plan_mod.is_a_link(plan, target_path) then
                     if fs.symlink_points_to(target_path, source_path) then
                         log.debug("already linked " .. target_path, options.verbose)
                     else

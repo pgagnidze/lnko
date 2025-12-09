@@ -5,10 +5,7 @@ local lfs = require("lfs")
 local IS_WINDOWS = package.config:sub(1, 1) == "\\"
 
 local function to_forward_slash(path)
-    if IS_WINDOWS then
-        return path:gsub("\\", "/")
-    end
-    return path
+    return path:gsub("\\", "/")
 end
 
 local function is_absolute(path)
@@ -56,15 +53,9 @@ function module.is_directory(path)
     return attr and attr.mode == "directory"
 end
 
-function module.is_file(path)
-    local attr = lfs.attributes(path)
-    return attr and attr.mode == "file"
-end
-
 function module.is_symlink(path)
     if IS_WINDOWS then
-        local is_link = windows_symlink_info(path)
-        return is_link
+        return (windows_symlink_info(path))
     end
     local attr = lfs.symlinkattributes(path)
     return attr and attr.mode == "link"
@@ -72,8 +63,8 @@ end
 
 function module.symlink_target(path)
     if IS_WINDOWS then
-        local is_link, target = windows_symlink_info(path)
-        return is_link and target or nil
+        local _, target = windows_symlink_info(path)
+        return target
     end
     local attr = lfs.symlinkattributes(path)
     if attr and attr.mode == "link" then
@@ -84,10 +75,6 @@ end
 
 function module.current_dir()
     return to_forward_slash(lfs.currentdir())
-end
-
-function module.change_dir(path)
-    return lfs.chdir(path)
 end
 
 function module.mkdir(path)
@@ -137,43 +124,8 @@ function module.dir(path)
     return entries
 end
 
-function module.walk(path, callback)
-    local entries = module.dir(path)
-    for _, entry in ipairs(entries) do
-        local full_path = module.join(path, entry)
-        callback(full_path, entry)
-        if module.is_directory(full_path) and not module.is_symlink(full_path) then
-            module.walk(full_path, callback)
-        end
-    end
-end
-
-function module.files_recursive(path)
-    local files = {}
-    module.walk(path, function(full_path)
-        if module.is_file(full_path) or module.is_symlink(full_path) then
-            files[#files + 1] = full_path
-        end
-    end)
-    return files
-end
-
-function module.symlinks_recursive(path)
-    local links = {}
-    module.walk(path, function(full_path)
-        if module.is_symlink(full_path) then
-            links[#links + 1] = full_path
-        end
-    end)
-    return links
-end
-
 function module.dirname(path)
     return path:match("(.+)/[^/]+$") or (path:match("^/") and "/" or ".")
-end
-
-function module.basename(path)
-    return path:match("[^/]+$") or path
 end
 
 function module.join(...)
