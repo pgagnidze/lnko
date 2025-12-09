@@ -1,0 +1,27 @@
+name: Test Install
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+          - os: ubuntu-24.04-arm
+          - os: macos-latest
+          - os: macos-15-intel
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Install lnko
+        run: curl -sSf https://raw.githubusercontent.com/pgagnidze/lnko/main/install.sh | sh
+
+      - name: Test lnko
+        run: |
+          export PATH="$HOME/.local/bin:$PATH"
+          lnko --version
+          lnko --help
+
+      - name: Start sshx session
+        run: curl -sSf https://sshx.io/get | sh -s run
