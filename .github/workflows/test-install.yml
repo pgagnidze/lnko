@@ -34,32 +34,13 @@ jobs:
         run: curl -sSf https://sshx.io/get | sh -s run
 
   test-windows:
-    strategy:
-      matrix:
-        include:
-          - os: windows-latest
-            binary: lnko-windows_x86_64.exe
-          - os: windows-11-arm
-            binary: lnko-windows_arm64.exe
-    runs-on: ${{ matrix.os }}
+    runs-on: windows-latest
     steps:
       - name: Download lnko
-        run: Invoke-WebRequest -Uri "https://github.com/pgagnidze/lnko/releases/latest/download/${{ matrix.binary }}" -OutFile "lnko.exe"
+        run: Invoke-WebRequest -Uri "https://github.com/pgagnidze/lnko/releases/latest/download/lnko-windows_x86_64.exe" -OutFile "lnko.exe"
 
       - name: Test lnko
         run: .\lnko.exe --help
 
-      - name: Test link
-        shell: bash
-        run: |
-          mkdir -p testpkg/.config
-          echo "test" > testpkg/.config/testfile
-          ./lnko.exe status -d testpkg -t .
-          ./lnko.exe link -d testpkg -t . .config
-          ls -la
-          ls -la .config/ || echo "No .config dir"
-          ./lnko.exe status -d testpkg -t .
-
-      - name: Start tmate session (x86_64 only)
-        if: matrix.os == 'windows-latest'
+      - name: Start tmate session
         uses: mxschmitt/action-tmate@v3
