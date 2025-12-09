@@ -45,6 +45,7 @@ local CLIB_REGISTRY = {
         url = "https://github.com/lunarmodules/luafilesystem.git",
         type = "git",
         sources = { "src/lfs.c" },
+        luaopen = "lfs",
     },
     lfs = "luafilesystem",
     lpeg = {
@@ -52,6 +53,7 @@ local CLIB_REGISTRY = {
         url = "http://www.inf.puc-rio.br/~roberto/lpeg/lpeg-1.1.0.tar.gz",
         type = "tarball",
         sources = { "lpcap.c", "lpcode.c", "lpcset.c", "lptree.c", "lpvm.c", "lpprint.c" },
+        luaopen = "lpeg",
     },
 }
 
@@ -359,7 +361,7 @@ local function build_clib_for_target(zig_bin, zig_target, lua_incdir, clib_name)
     local info = resolve_clib(clib_name)
     if not info then
         log("warn", "unknown C library: "..clib_name.." (skipping)")
-        return nil
+        return nil, nil
     end
 
     local target_build_dir = CACHE_DIR.."/"..info.name.."-"..zig_target
@@ -367,7 +369,7 @@ local function build_clib_for_target(zig_bin, zig_target, lua_incdir, clib_name)
 
     if file_exists(lib_a) then
         log("success", info.name..".a for "..zig_target.." exists, skipping")
-        return lib_a
+        return lib_a, info
     end
 
     log("info", "building "..info.name.." for "..zig_target)
@@ -398,7 +400,7 @@ local function build_clib_for_target(zig_bin, zig_target, lua_incdir, clib_name)
     end
 
     log("success", "built "..info.name..".a for "..zig_target)
-    return lib_a
+    return lib_a, info
 end
 
 local function build_clib_native(lua_incdir, clib_name)
@@ -969,16 +971,19 @@ local function build_for_target(spec, output_name, target)
     local zig_bin = ensure_zig()
     local lua_incdir, lua_static_lib = build_lua_for_target(zig_bin, zig_target)
 
-    local clib_files = {}
+    local module_library_files = {}
     for _, dep in ipairs(spec.c_deps) do
-        local lib_a = build_clib_for_target(zig_bin, zig_target, lua_incdir, dep)
-        if lib_a then
-            table.insert(clib_files, lib_a)
+        local lib_a, info = build_clib_for_target(zig_bin, zig_target, lua_incdir, dep)
+        if lib_a and info and info.luaopen then
+            table.insert(module_library_files, {
+                path = lib_a,
+                dotpath_underscore = info.luaopen,
+                dotpath_noextension = info.luaopen:gsub("_", "."),
+            })
         end
     end
 
     local lua_source_files = prepare_sources(spec)
-    local module_library_files = find_luaopen_symbols(clib_files)
 
     local outfilename = generate_c_source(lua_source_files, module_library_files)
 
