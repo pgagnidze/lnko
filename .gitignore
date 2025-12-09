@@ -42,6 +42,10 @@ luac.out
 # Build directory
 .build/
 
+# luas test binaries
+lnko-*
+!lnko-*.rockspec
+
 .DS_Store
 *.local.md
 **/.claude/settings.local.json
