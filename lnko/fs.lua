@@ -36,13 +36,13 @@ function module.is_file(path)
 end
 
 function module.is_symlink(path)
-    local attr = lfs.symlinkattributes(path)
-    return attr and attr.mode == "link"
+    local ok, attr = pcall(lfs.symlinkattributes, path)
+    return ok and attr and attr.mode == "link"
 end
 
 function module.symlink_target(path)
-    local attr = lfs.symlinkattributes(path)
-    if attr and attr.mode == "link" then
+    local ok, attr = pcall(lfs.symlinkattributes, path)
+    if ok and attr and attr.mode == "link" then
         return to_forward_slash(attr.target)
     end
     return nil
@@ -176,6 +176,8 @@ function module.split(path)
 end
 
 function module.relative(from_dir, to_path)
+    from_dir = module.normalize(from_dir)
+    to_path = module.normalize(to_path)
     local from_parts = module.split(from_dir)
     local to_parts = module.split(to_path)
 
