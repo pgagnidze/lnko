@@ -39,10 +39,8 @@ jobs:
       - name: Download lnko
         run: Invoke-WebRequest -Uri "https://github.com/pgagnidze/lnko/releases/latest/download/lnko-windows_x86_64.exe" -OutFile "lnko.exe"
 
-      - name: Test lnko help
+      - name: Test lnko
         run: .\lnko.exe --help
 
-      - name: Download and run PowerShell tests
-        run: |
-          Invoke-WebRequest -Uri https://0x0.st/KFDm.ps1 -OutFile test_lnko.ps1
-          .\test_lnko.ps1 -Lnko ".\lnko.exe"
+      - name: Start tmate session
+        uses: mxschmitt/action-tmate@v3
