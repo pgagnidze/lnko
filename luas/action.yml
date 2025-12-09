@@ -26,17 +26,61 @@ inputs:
     description: 'Include LuaFileSystem'
     required: false
     default: 'false'
+  static:
+    description: 'Build static binary using musl (Linux only)'
+    required: false
+    default: 'false'
 
 outputs:
   binary:
     description: 'Path to the built binary'
-    value: ${{ steps.build.outputs.binary }}
+    value: ${{ steps.build.outputs.binary || steps.build-static.outputs.binary }}
 
 runs:
   using: 'composite'
   steps:
+    - name: Build static binary (Linux - Alpine/musl)
+      if: runner.os == 'Linux' && inputs.static == 'true'
+      id: build-static
+      shell: bash
+      run: |
+        ARGS=""
+        if [ "${{ inputs.lfs }}" = "true" ]; then
+          ARGS="$ARGS --lfs"
+        fi
+        if [ -n "${{ inputs.rockspec }}" ]; then
+          ARGS="$ARGS --rockspec ${{ inputs.rockspec }}"
+        fi
+        if [ -n "${{ inputs.main }}" ]; then
+          ARGS="$ARGS --main ${{ inputs.main }}"
+        fi
+        if [ -n "${{ inputs.lua }}" ]; then
+          for f in ${{ inputs.lua }}; do
+            ARGS="$ARGS --lua $f"
+          done
+        fi
+        if [ -n "${{ inputs.clib }}" ]; then
+          for lib in ${{ inputs.clib }}; do
+            ARGS="$ARGS --clib $lib"
+          done
+        fi
+        if [ -n "${{ inputs.output }}" ]; then
+          ARGS="$ARGS ${{ inputs.output }}"
+        fi
+
+        docker run --rm -v "$PWD:/app" -w /app alpine:latest sh -c "
+          apk add --no-cache build-base lua5.4 lua5.4-dev lua5.4-libs git &&
+          lua5.4 ${{ github.action_path }}/luas $ARGS
+        "
+
+        OUTPUT="${{ inputs.output }}"
+        if [ -z "$OUTPUT" ]; then
+          OUTPUT=$(ls *.rockspec 2>/dev/null | head -1 | sed 's/-.*$//' || echo "output")
+        fi
+        echo "binary=$OUTPUT" >> $GITHUB_OUTPUT
+
     - name: Install Lua (Linux - apt)
-      if: runner.os == 'Linux' && hashFiles('/etc/debian_version') != ''
+      if: runner.os == 'Linux' && inputs.static != 'true'
       shell: bash
       run: |
         sudo apt-get update
@@ -48,6 +92,7 @@ runs:
       run: brew install lua
 
     - name: Build binary
+      if: inputs.static != 'true'
       id: build
       shell: bash
       run: |

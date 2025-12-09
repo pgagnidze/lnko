@@ -67,19 +67,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
-      - name: Build (Linux)
-        if: runner.os == 'Linux'
-        run: |
-          docker run --rm -v "$PWD:/app" -w /app alpine:latest sh -c "
-            apk add --no-cache build-base lua5.4 lua5.4-dev lua5.4-libs git &&
-            lua5.4 luas/luas --lfs lnko-${{ matrix.target }}
-          "
-      - name: Build (macOS)
-        if: runner.os == 'macOS'
+      - name: Build
         uses: ./luas
         with:
           output: lnko-${{ matrix.target }}
           lfs: true
+          static: ${{ runner.os == 'Linux' }}
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
