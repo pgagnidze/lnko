@@ -261,7 +261,7 @@ function module.resolve_symlink(path)
         return nil
     end
 
-    if target:sub(1, 1) == "/" then
+    if is_absolute(target) then
         return target
     end
 
