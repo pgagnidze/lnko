@@ -28,7 +28,6 @@ jobs:
       - name: Test lnko
         run: |
           export PATH="$HOME/.local/bin:$PATH"
-          lnko --version
           lnko --help
 
       - name: Start sshx session
