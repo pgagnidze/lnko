@@ -2,6 +2,25 @@ local module = {}
 
 local lfs = require("lfs")
 
+local IS_WINDOWS = package.config:sub(1, 1) == "\\"
+
+local function to_forward_slash(path)
+    if IS_WINDOWS then
+        return path:gsub("\\", "/")
+    end
+    return path
+end
+
+local function is_absolute(path)
+    if path:sub(1, 1) == "/" then
+        return true
+    end
+    if IS_WINDOWS and path:match("^%a:/") then
+        return true
+    end
+    return false
+end
+
 function module.exists(path)
     return lfs.attributes(path) ~= nil
 end
@@ -24,13 +43,13 @@ end
 function module.symlink_target(path)
     local attr = lfs.symlinkattributes(path)
     if attr and attr.mode == "link" then
-        return attr.target
+        return to_forward_slash(attr.target)
     end
     return nil
 end
 
 function module.current_dir()
-    return lfs.currentdir()
+    return to_forward_slash(lfs.currentdir())
 end
 
 function module.change_dir(path)
@@ -129,7 +148,8 @@ function module.join(...)
 
     for _, part in ipairs(parts) do
         if part and part ~= "" then
-            if part:sub(1, 1) == "/" then
+            part = to_forward_slash(part)
+            if is_absolute(part) then
                 result = { part }
             elseif #result == 0 then
                 result[#result + 1] = part
@@ -186,7 +206,8 @@ function module.relative(from_dir, to_path)
 end
 
 function module.absolute(path)
-    if path:sub(1, 1) == "/" then
+    path = to_forward_slash(path)
+    if is_absolute(path) then
         return path
     end
 
@@ -213,15 +234,22 @@ function module.resolve_symlink(path)
 end
 
 function module.normalize(path)
+    path = to_forward_slash(path)
+    local drive_prefix = ""
+    if IS_WINDOWS and path:match("^%a:/") then
+        drive_prefix = path:sub(1, 2)
+        path = path:sub(3)
+    end
+
     local parts = module.split(path)
     local result = {}
-    local is_absolute = path:sub(1, 1) == "/"
+    local abs = path:sub(1, 1) == "/"
 
     for _, part in ipairs(parts) do
         if part == ".." then
             if #result > 0 and result[#result] ~= ".." then
                 result[#result] = nil
-            elseif not is_absolute then
+            elseif not abs then
                 result[#result + 1] = ".."
             end
         elseif part ~= "." then
@@ -230,8 +258,8 @@ function module.normalize(path)
     end
 
     local normalized = table.concat(result, "/")
-    if is_absolute then
-        return "/" .. normalized
+    if abs then
+        return drive_prefix .. "/" .. normalized
     end
 
     return normalized ~= "" and normalized or "."
