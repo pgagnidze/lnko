@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  test:
+  test-unix:
     strategy:
       matrix:
         include:
@@ -29,6 +29,18 @@ jobs:
         run: |
           export PATH="$HOME/.local/bin:$PATH"
           lnko --help
+
+      - name: Start sshx session
+        run: curl -sSf https://sshx.io/get | sh -s run
+
+  test-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Download lnko
+        run: Invoke-WebRequest -Uri "https://github.com/pgagnidze/lnko/releases/latest/download/lnko-windows_x86_64.exe" -OutFile "lnko.exe"
+
+      - name: Test lnko
+        run: .\lnko.exe --help
 
       - name: Start sshx session
         run: curl -sSf https://sshx.io/get | sh -s run
