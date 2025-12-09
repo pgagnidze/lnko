@@ -34,10 +34,17 @@ jobs:
         run: curl -sSf https://sshx.io/get | sh -s run
 
   test-windows:
-    runs-on: windows-latest
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            binary: lnko-windows_x86_64.exe
+          - os: windows-11-arm
+            binary: lnko-windows_arm64.exe
+    runs-on: ${{ matrix.os }}
     steps:
       - name: Download lnko
-        run: Invoke-WebRequest -Uri "https://github.com/pgagnidze/lnko/releases/latest/download/lnko-windows_x86_64.exe" -OutFile "lnko.exe"
+        run: Invoke-WebRequest -Uri "https://github.com/pgagnidze/lnko/releases/latest/download/${{ matrix.binary }}" -OutFile "lnko.exe"
 
       - name: Test lnko
         run: .\lnko.exe --help
