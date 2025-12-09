@@ -1125,17 +1125,17 @@ local function main(args)
 
     local output_name = opts.output or spec.name
 
-    if dir_exists("./"..output_name) then
-        io.stdout:flush()
-        log("error", "'"..output_name.."' is a directory, use: luas <output-name>")
-        os.exit(1)
-    end
-
     if #opts.targets > 0 then
         for _, target in ipairs(opts.targets) do
             build_for_target(spec, output_name, target)
         end
         os.exit(0)
+    end
+
+    if dir_exists("./"..output_name) then
+        io.stdout:flush()
+        log("error", "'"..output_name.."' is a directory, use: luas <output-name>")
+        os.exit(1)
     end
 
     local os_name, arch = detect_os()
