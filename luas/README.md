@@ -1,18 +1,95 @@
 # luas
 
-Build standalone Lua binaries with no runtime dependencies.
+Build standalone Lua binaries with cross-compilation support.
 
 ## Overview
 
-luas embeds Lua source files and the Lua interpreter into a single executable. It converts Lua source to C arrays and compiles them with a static Lua interpreter.
+luas builds single-file executables from LuaRocks projects. It embeds Lua source files into a static binary that runs without any runtime dependencies.
+
+**Key feature:** Cross-compile from Linux/macOS to any supported target using Zig as the C compiler.
+
+## Quick Start
+
+```bash
+# Build for current platform
+./luas myapp
+
+# Cross-compile for multiple targets
+./luas -t linux-x86_64 -t linux-arm64 -t macos-arm64 -t windows-x86_64 myapp
+```
+
+## CLI Usage
+
+```
+luas [options] [output-name]
+
+Options:
+    -h, --help      Show help message
+    -r, --rockspec  Path to rockspec file (default: auto-detect)
+    -t, --target    Cross-compile for target (can be repeated)
+
+Available targets:
+    linux-x86_64, linux-arm64
+    macos-x86_64, macos-arm64 (darwin-* also works)
+    windows-x86_64
+
+Environment:
+    BUILD_DIR       Build directory (default: .build)
+    LUAS_CACHE      Cache directory for zig/lua (default: ~/.cache/luas)
+    CC              C compiler (default: cc, ignored with --target)
+```
+
+## How It Works
+
+1. Parses rockspec to find entry point and modules
+2. Auto-detects C dependencies (lpeg, luafilesystem) from rockspec
+3. Downloads and caches Zig toolchain for cross-compilation
+4. Builds Lua and C libraries from source for each target
+5. Embeds Lua source as C arrays
+6. Compiles to static binary
+
+## C Library Support
+
+C dependencies listed in rockspec are automatically built:
+
+| Dependency | Status |
+|------------|--------|
+| luafilesystem | Supported |
+| lpeg | Supported |
+
+## Requirements
+
+**Host (where luas runs):**
+- Linux or macOS
+- Lua 5.1+
+- C compiler, ar, git
+- curl or wget
+
+**For native builds:**
+- Lua development files (lua.h, liblua.a)
+
+**For cross-compilation:**
+- No additional requirements (Zig is downloaded automatically)
+
+## Output Binaries
+
+| Target | Binary Type |
+|--------|-------------|
+| linux-x86_64 | Static ELF (musl) |
+| linux-arm64 | Static ELF (musl) |
+| macos-x86_64 | Mach-O x86_64 |
+| macos-arm64 | Mach-O arm64 |
+| windows-x86_64 | PE32+ executable |
+
+Linux binaries are fully static (musl libc). No runtime dependencies.
 
 ## GitHub Action
 
 ```yaml
 - uses: pgagnidze/lnko/luas@main
   with:
-    output: myapp-linux_x86_64
-    lfs: true
+    output: myapp
+    targets: linux-x86_64 linux-arm64 macos-arm64 windows-x86_64
 ```
 
 ### Inputs
@@ -21,40 +98,9 @@ luas embeds Lua source files and the Lua interpreter into a single executable. I
 |-------|-------------|----------|
 | `output` | Output binary name | No (defaults to package name) |
 | `rockspec` | Path to rockspec file | No (auto-detected) |
-| `main` | Main Lua script (entry point) | No |
-| `lua` | Lua module files (space-separated) | No |
-| `clib` | Static C libraries to link (space-separated) | No |
-| `lfs` | Include LuaFileSystem (`true`/`false`) | No (default: `false`) |
+| `targets` | Space-separated list of targets | No (native build if empty) |
 
-### Examples
-
-**Build from rockspec:**
-```yaml
-- uses: pgagnidze/lnko/luas@main
-  with:
-    output: myapp-${{ matrix.target }}
-    lfs: true
-```
-
-**Build without rockspec:**
-```yaml
-- uses: pgagnidze/lnko/luas@main
-  with:
-    main: bin/app.lua
-    lua: "lib/*.lua"
-    output: myapp
-```
-
-**Build with additional C libraries:**
-```yaml
-- uses: pgagnidze/lnko/luas@main
-  with:
-    output: myapp
-    lfs: true
-    clib: "lpeg.a luasocket.a"
-```
-
-### Full workflow example
+### Example Workflow
 
 ```yaml
 name: Build
@@ -65,89 +111,24 @@ on:
 
 jobs:
   build:
-    strategy:
-      matrix:
-        include:
-          - target: linux_x86_64
-            os: ubuntu-latest
-          - target: linux_arm64
-            os: ubuntu-24.04-arm
-          - target: darwin_x86_64
-            os: macos-15-intel
-          - target: darwin_arm64
-            os: macos-latest
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: pgagnidze/lnko/luas@main
         with:
-          output: myapp-${{ matrix.target }}
-          lfs: true
+          output: myapp
+          targets: linux-x86_64 linux-arm64 macos-arm64 windows-x86_64
       - uses: actions/upload-artifact@v4
         with:
-          name: myapp-${{ matrix.target }}
-          path: myapp-${{ matrix.target }}
+          name: binaries
+          path: myapp-*
 ```
-
-## CLI Usage
-
-You can also run luas directly:
-
-```bash
-lua luas [options] [output-name]
-```
-
-### Options
-
-| Option | Description |
-|--------|-------------|
-| `-h, --help` | Show help message |
-| `-r, --rockspec <file>` | Path to rockspec file |
-| `-m, --main <file>` | Main Lua script (entry point) |
-| `-l, --lua <files>` | Lua module files (can be repeated) |
-| `-c, --clib <file>` | Static C library to link (can be repeated) |
-| `--lfs` | Build and include LuaFileSystem |
-
-### Examples
-
-```bash
-# Build from rockspec
-lua luas --lfs myapp
-
-# Build without rockspec
-lua luas --main bin/app.lua --lua "lib/*.lua" myapp
-
-# Build with multiple C libraries
-lua luas --lfs --clib lpeg.a myapp
-```
-
-## Requirements
-
-- Lua 5.4
-- C compiler (gcc/clang)
-- Lua development files (lua.h, liblua.a)
-- git (for --lfs flag)
-
-## How It Works
-
-1. Parses rockspec or command-line arguments
-2. Converts Lua source to C hex arrays
-3. Generates a C file with embedded loader
-4. Compiles and links with static Lua interpreter
-5. Strips debug symbols
-
-Output binary dynamically links only glibc (present on all Linux systems).
-
-## Supported Platforms
-
-- Linux x86_64
-- Linux arm64
-- macOS x86_64
-- macOS arm64
 
 ## Credits
 
 Based on [luastatic](https://github.com/ers35/luastatic) by ers35.
+
+Cross-compilation powered by [Zig](https://ziglang.org/).
 
 ## License
 
