@@ -49,5 +49,17 @@ jobs:
       - name: Test lnko
         run: .\lnko.exe --help
 
-      - name: Start tmate session
+      - name: Test link
+        shell: bash
+        run: |
+          mkdir -p testpkg/.config
+          echo "test" > testpkg/.config/testfile
+          ./lnko.exe status -d testpkg -t .
+          ./lnko.exe link -d testpkg -t . .config
+          ls -la
+          ls -la .config/ || echo "No .config dir"
+          ./lnko.exe status -d testpkg -t .
+
+      - name: Start tmate session (x86_64 only)
+        if: matrix.os == 'windows-latest'
         uses: mxschmitt/action-tmate@v3
