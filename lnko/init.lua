@@ -427,15 +427,15 @@ function module.show_status(source_dir, target_dir, _options)
         local status_color = "green"
         local status_text = "ok"
 
-        if total == 0 or (missing > 0 and linked == 0) then
+        if conflict > 0 then
+            status_color = "red"
+            status_text = "conflict"
+        elseif total == 0 or (missing > 0 and linked == 0) then
             status_color = "bright_black"
             status_text = "not linked"
         elseif missing > 0 then
             status_color = "yellow"
             status_text = "partial"
-        elseif conflict > 0 then
-            status_color = "red"
-            status_text = "conflict"
         end
 
         local item_word = total == 1 and "item" or "items"
