@@ -26,7 +26,7 @@ local function windows_symlink_info(path)
     local dir_path = path:match("(.+)\\[^\\]+$") or "."
     local name = path:match("([^\\]+)$") or path
 
-    local handle = io.popen('dir /AL "' .. dir_path .. '" 2>nul')
+    local handle = io.popen('cmd /c dir /AL "' .. dir_path .. '" 2>nul')
     if not handle then
         return false, nil
     end
