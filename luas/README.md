@@ -15,7 +15,7 @@ luas builds single-file executables from LuaRocks projects. It embeds Lua source
 ./luas myapp
 
 # Cross-compile for multiple targets
-./luas -t linux-x86_64 -t linux-arm64 -t macos-arm64 -t windows-x86_64 myapp
+./luas -t linux-x86_64 -t linux-arm64 -t darwin-arm64 -t windows-x86_64 myapp
 ```
 
 ## CLI Usage
@@ -30,7 +30,7 @@ Options:
 
 Available targets:
     linux-x86_64, linux-arm64
-    macos-x86_64, macos-arm64 (darwin-* also works)
+    darwin-x86_64, darwin-arm64 (macos-* also works)
     windows-x86_64
 
 Environment:
@@ -77,8 +77,8 @@ C dependencies listed in rockspec are automatically built:
 |--------|-------------|
 | linux-x86_64 | Static ELF (musl) |
 | linux-arm64 | Static ELF (musl) |
-| macos-x86_64 | Mach-O x86_64 |
-| macos-arm64 | Mach-O arm64 |
+| darwin-x86_64 | Mach-O x86_64 |
+| darwin-arm64 | Mach-O arm64 |
 | windows-x86_64 | PE32+ executable |
 | windows-arm64 | PE32+ executable (ARM64) |
 
@@ -90,7 +90,7 @@ Linux binaries are fully static (musl libc). No runtime dependencies.
 - uses: pgagnidze/lnko/luas@main
   with:
     output: myapp
-    targets: linux-x86_64 linux-arm64 macos-arm64 windows-x86_64
+    targets: linux-x86_64 linux-arm64 darwin-arm64 windows-x86_64
 ```
 
 ### Inputs
@@ -118,7 +118,7 @@ jobs:
       - uses: pgagnidze/lnko/luas@main
         with:
           output: myapp
-          targets: linux-x86_64 linux-arm64 macos-arm64 windows-x86_64
+          targets: linux-x86_64 linux-arm64 darwin-arm64 windows-x86_64
       - uses: actions/upload-artifact@v4
         with:
           name: binaries

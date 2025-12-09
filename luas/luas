@@ -179,7 +179,7 @@ Options:
                     C deps (lpeg, lfs) are auto-built from rockspec
                     Available targets:
                       linux-x86_64, linux-arm64
-                      macos-x86_64, macos-arm64 (darwin-* also works)
+                      darwin-x86_64, darwin-arm64 (macos-* also works)
                       windows-x86_64, windows-arm64
 
 Environment:
