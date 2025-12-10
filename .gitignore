@@ -48,6 +48,8 @@ lnko-*
 
 .DS_Store
 *.local.md
+*.local.sh
+*.local.yml
 **/.claude/settings.local.json
 
 # Symlinked style guides
