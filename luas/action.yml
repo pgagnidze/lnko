@@ -16,6 +16,9 @@ inputs:
   targets:
     description: 'Space-separated list of targets (e.g., "linux-x86_64 linux-arm64 macos-arm64 windows-x86_64")'
     required: false
+  lua-version:
+    description: 'Lua version to use (default: 5.4.7)'
+    required: false
 
 outputs:
   binary:
@@ -48,6 +51,10 @@ runs:
       shell: bash
       run: |
         LUAS_SCRIPT="${{ github.action_path }}/luas"
+
+        if [ -n "${{ inputs.lua-version }}" ]; then
+          export LUA_VERSION="${{ inputs.lua-version }}"
+        fi
 
         ARGS=""
 
