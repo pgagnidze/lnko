@@ -28,7 +28,7 @@ local TARGET_MAP = {
     ["windows-arm64"] = "aarch64-windows-gnu",
 }
 
-local LUA_VERSION = "5.4.7"
+local LUA_VERSION = os.getenv("LUA_VERSION") or "5.4.7"
 local LUA_URL = "https://www.lua.org/ftp/lua-"..LUA_VERSION..".tar.gz"
 
 local LUA_CORE_FILES = {
@@ -186,6 +186,7 @@ Options:
 Environment:
     BUILD_DIR       Build directory (default: .build)
     LUAS_CACHE      Cache directory for zig/lua (default: ~/.cache/luas)
+    LUA_VERSION     Lua version to use (default: 5.4.7)
     CC              C compiler (default: cc, ignored with --target)
 
 Examples:
