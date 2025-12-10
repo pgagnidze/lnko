@@ -47,6 +47,25 @@ jobs:
       - name: Run tests
         run: busted spec/
 
+  cache:
+    name: Warm Cache
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Lua
+        uses: leafo/gh-actions-lua@v10
+        with:
+          luaVersion: "5.4"
+      - name: Cache luas dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/luas
+          key: luas-${{ runner.os }}-zig0.14.0-lua5.4.7
+      - name: Warm cache
+        run: ./luas/luas -q -t linux-x86_64 lnko && rm -f lnko-*
+
   build:
     name: Build
     if: startsWith(github.ref, 'refs/tags/')
@@ -59,10 +78,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cache/luas
-          key: luas-${{ runner.os }}-zig0.14.0-lua5.4.7-${{ github.sha }}
-          restore-keys: |
-            luas-${{ runner.os }}-zig0.14.0-lua5.4.7-
-            luas-${{ runner.os }}-
+          key: luas-${{ runner.os }}-zig0.14.0-lua5.4.7
       - name: Build all targets
         uses: ./luas
         with:
