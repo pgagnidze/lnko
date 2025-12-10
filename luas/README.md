@@ -25,17 +25,20 @@ luas [options] [output-name]
 
 Options:
     -h, --help      Show help message
+    -q, --quiet     Only show errors and warnings
+    -v, --verbose   Show detailed output
     -r, --rockspec  Path to rockspec file (default: auto-detect)
     -t, --target    Cross-compile for target (can be repeated)
 
 Available targets:
     linux-x86_64, linux-arm64
     darwin-x86_64, darwin-arm64 (macos-* also works)
-    windows-x86_64
+    windows-x86_64, windows-arm64
 
 Environment:
     BUILD_DIR       Build directory (default: .build)
     LUAS_CACHE      Cache directory for zig/lua (default: ~/.cache/luas)
+    LUA_VERSION     Lua version to build (default: 5.4.7)
     CC              C compiler (default: cc, ignored with --target)
 ```
 
@@ -54,8 +57,28 @@ C dependencies listed in rockspec are automatically built:
 
 | Dependency | Status |
 |------------|--------|
-| luafilesystem | Supported |
-| lpeg | Supported |
+| luafilesystem | Built-in |
+| lpeg | Built-in |
+
+### Custom C Libraries
+
+Add custom C libraries via `.luasrc` config file:
+
+```lua
+return {
+    mylib = {
+        url = "https://github.com/user/mylib.git",
+        sources = { "src/mylib.c" },
+    },
+}
+```
+
+Fields:
+- `url` (required): Git repo or tarball URL
+- `sources` (required): List of C source files
+- `name`: Library name (defaults to key)
+- `type`: `"git"` or `"tarball"` (auto-detected from URL)
+- `luaopen`: Lua module name (defaults to key)
 
 ## Requirements
 
