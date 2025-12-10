@@ -25,6 +25,12 @@ outputs:
 runs:
   using: 'composite'
   steps:
+    - name: Cache luas dependencies
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/luas
+        key: luas-${{ runner.os }}
+
     - name: Install Lua (Linux)
       if: runner.os == 'Linux'
       shell: bash

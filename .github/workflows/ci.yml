@@ -54,11 +54,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Cache luas dependencies
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/luas
-          key: luas-${{ runner.os }}-zig0.14.0-lua5.4.7
       - name: Build all targets
         uses: ./luas
         with:
