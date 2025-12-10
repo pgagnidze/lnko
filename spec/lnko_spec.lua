@@ -117,6 +117,41 @@ describe("lnko", function()
             assert.is_true(fs.is_symlink(target .. "/.config/app_a"))
             assert.is_true(fs.is_symlink(target .. "/.config/app_b"))
         end)
+
+        it("should link into existing directory", function()
+            local source = test_dir .. "/existing_dir_source"
+            local target = test_dir .. "/existing_dir_target"
+            os.execute("mkdir -p " .. source .. "/pkg/lib")
+            os.execute("mkdir -p " .. target .. "/lib")
+            os.execute("echo 'file' > " .. source .. "/pkg/lib/file.txt")
+
+            lnko.link_package(source, "pkg", target, { skip = true })
+            assert.is_true(fs.is_directory(target .. "/lib"))
+            assert.is_false(fs.is_symlink(target .. "/lib"))
+            assert.is_true(fs.is_symlink(target .. "/lib/file.txt"))
+        end)
+
+        it("should unfold deeply with multiple packages (nvim-style)", function()
+            local source = test_dir .. "/nvim_source"
+            local target = test_dir .. "/nvim_target"
+            os.execute("mkdir -p " .. source .. "/nvim/.config/nvim/lua/config")
+            os.execute("mkdir -p " .. source .. "/lazy/.config/nvim/lua/plugins")
+            os.execute("mkdir -p " .. source .. "/telescope/.config/nvim/lua/plugins/telescope")
+            os.execute("mkdir -p " .. target)
+            os.execute("echo 'init' > " .. source .. "/nvim/.config/nvim/init.lua")
+            os.execute("echo 'config' > " .. source .. "/nvim/.config/nvim/lua/config/init.lua")
+            os.execute("echo 'lazy' > " .. source .. "/lazy/.config/nvim/lua/plugins/lazy.lua")
+            os.execute("echo 'ts' > " .. source .. "/telescope/.config/nvim/lua/plugins/telescope/init.lua")
+
+            lnko.link_package(source, "nvim", target, { skip = true })
+            lnko.link_package(source, "lazy", target, { skip = true })
+            lnko.link_package(source, "telescope", target, { skip = true })
+
+            assert.is_true(fs.is_directory(target .. "/.config/nvim/lua/plugins"))
+            assert.is_false(fs.is_symlink(target .. "/.config/nvim/lua/plugins"))
+            assert.is_true(fs.is_symlink(target .. "/.config/nvim/lua/plugins/lazy.lua"))
+            assert.is_true(fs.is_symlink(target .. "/.config/nvim/lua/plugins/telescope"))
+        end)
     end)
 
     describe("conflict detection", function()
@@ -154,6 +189,73 @@ describe("lnko", function()
             assert.are.equal(0, #tasks)
             assert.is_false(fs.is_symlink(target .. "/file.txt"))
             assert.is_true(fs.exists(target .. "/file.txt"))
+        end)
+
+        it("should overwrite conflict with force option", function()
+            local source = test_dir .. "/conflict_force_source"
+            local target = test_dir .. "/conflict_force_target"
+
+            os.execute("mkdir -p " .. source .. "/pkg")
+            os.execute("mkdir -p " .. target)
+            os.execute("echo 'new' > " .. source .. "/pkg/file.txt")
+            os.execute("echo 'existing' > " .. target .. "/file.txt")
+
+            lnko.link_package(source, "pkg", target, { force = true })
+            assert.is_true(fs.is_symlink(target .. "/file.txt"))
+            assert.is_true(fs.symlink_points_to(target .. "/file.txt", source .. "/pkg/file.txt"))
+        end)
+
+        it("should backup conflict with backup option", function()
+            local source = test_dir .. "/conflict_backup_source"
+            local target = test_dir .. "/conflict_backup_target"
+
+            os.execute("mkdir -p " .. source .. "/pkg")
+            os.execute("mkdir -p " .. target)
+            os.execute("echo 'new' > " .. source .. "/pkg/file.txt")
+            os.execute("echo 'existing' > " .. target .. "/file.txt")
+
+            lnko.link_package(source, "pkg", target, { backup = true })
+            assert.is_true(fs.is_symlink(target .. "/file.txt"))
+            assert.is_true(fs.is_directory(target .. "/.lnko-backup"))
+        end)
+    end)
+
+    describe("ignore patterns", function()
+        it("should ignore files matching pattern", function()
+            local source = test_dir .. "/ignore_source"
+            local target = test_dir .. "/ignore_target"
+
+            os.execute("mkdir -p " .. source .. "/pkg/.git/objects")
+            os.execute("mkdir -p " .. target)
+            os.execute("echo 'file' > " .. source .. "/pkg/file.txt")
+            os.execute("echo 'git' > " .. source .. "/pkg/.git/config")
+            os.execute("echo 'readme' > " .. source .. "/pkg/README.md")
+
+            lnko.link_package(source, "pkg", target, { ignore = { "^%.git", "README" } })
+            assert.is_true(fs.is_symlink(target .. "/file.txt"))
+            assert.is_false(fs.exists(target .. "/.git"))
+            assert.is_false(fs.exists(target .. "/README.md"))
+        end)
+    end)
+
+    describe("partial operations", function()
+        it("should unlink one package while preserving others", function()
+            local source = test_dir .. "/partial_source"
+            local target = test_dir .. "/partial_target"
+
+            os.execute("mkdir -p " .. source .. "/pkg_a/.config/app_a")
+            os.execute("mkdir -p " .. source .. "/pkg_b/.config/app_b")
+            os.execute("mkdir -p " .. target)
+            os.execute("echo 'a' > " .. source .. "/pkg_a/.config/app_a/config")
+            os.execute("echo 'b' > " .. source .. "/pkg_b/.config/app_b/config")
+
+            lnko.link_package(source, "pkg_a", target, { skip = true })
+            lnko.link_package(source, "pkg_b", target, { skip = true })
+
+            lnko.unlink_package(source, "pkg_a", target, {})
+
+            assert.is_false(fs.exists(target .. "/.config/app_a"))
+            assert.is_true(fs.is_symlink(target .. "/.config/app_b"))
         end)
     end)
 
@@ -246,6 +348,23 @@ describe("lnko", function()
             lnko.link_package(source, "pkg", target, { skip = true })
 
             assert.is_true(fs.is_symlink(target .. "/link_to_external"))
+        end)
+
+        it("should preserve internal symlinks in packages (lib.so pattern)", function()
+            local source = test_dir .. "/libso_source"
+            local target = test_dir .. "/libso_target"
+
+            os.execute("mkdir -p " .. source .. "/pkg/lib")
+            os.execute("mkdir -p " .. target)
+            os.execute("echo 'library' > " .. source .. "/pkg/lib/lib.so.1")
+            os.execute("ln -s lib.so.1 " .. source .. "/pkg/lib/lib.so")
+
+            lnko.link_package(source, "pkg", target, { skip = true })
+
+            assert.is_true(fs.is_symlink(target .. "/lib"))
+            assert.is_true(fs.exists(target .. "/lib/lib.so.1"))
+            assert.is_true(fs.is_symlink(target .. "/lib/lib.so"))
+            assert.are.equal("lib.so.1", fs.symlink_target(target .. "/lib/lib.so"))
         end)
 
         it("should handle relative source path", function()

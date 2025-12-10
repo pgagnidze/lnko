@@ -1,9 +1,9 @@
 local module = {}
 
 local fs = require("lnko.fs")
+local plan_mod = require("lnko.plan")
 
 function module.can_unfold(target_path, pkg_path, source_dir, plan)
-    local plan_mod = require("lnko.plan")
 
     if not plan_mod.is_a_link(plan, target_path) or not fs.is_directory(pkg_path) then
         return nil
@@ -34,7 +34,6 @@ function module.can_unfold(target_path, pkg_path, source_dir, plan)
 end
 
 function module.unfold(target_path, existing_pkg_path, plan)
-    local plan_mod = require("lnko.plan")
     plan_mod.add_task(plan, plan_mod.ACTION_UNLINK, target_path)
     plan_mod.add_task(plan, plan_mod.ACTION_MKDIR, target_path)
 

@@ -91,6 +91,23 @@ local function show_diff(source, target)
     os.execute("diff -u " .. string.format("%q", target) .. " " .. string.format("%q", source) .. " | head -50")
 end
 
+local function resolve_conflict(target_path, source_path, options)
+    local action = ask_conflict(target_path, options)
+    if action == "quit" then return "quit" end
+    if action == "diff" then
+        if source_path then
+            local diff_target = target_path
+            if fs.is_symlink(target_path) then
+                diff_target = fs.resolve_symlink(target_path) or target_path
+            end
+            show_diff(source_path, diff_target)
+        end
+        action = ask_conflict(target_path, options)
+        if action == "quit" then return "quit" end
+    end
+    return action
+end
+
 local function list_packages(source_dir)
     local packages = {}
     local entries = fs.dir(source_dir)
@@ -119,6 +136,38 @@ function module.plan_link(source_dir, package, target_dir, options)
 
     log.debug("planning link for " .. package, options.verbose)
 
+    local function handle_dir_conflict(source_path, target_path)
+        local action = resolve_conflict(target_path, source_path, options)
+        if action == "quit" then return "quit" end
+        if action == "backup" then
+            local backup_path = get_backup_path(target_path, target_dir)
+            plan_mod.add_task(plan, plan_mod.ACTION_BACKUP, target_path, nil, { backup_path = backup_path })
+            plan_mod.add_task(plan, plan_mod.ACTION_MKDIR, target_path)
+            return "continue"
+        elseif action == "overwrite" then
+            plan_mod.add_task(plan, plan_mod.ACTION_UNLINK, target_path)
+            plan_mod.add_task(plan, plan_mod.ACTION_MKDIR, target_path)
+            return "continue"
+        end
+        return "skip"
+    end
+
+    local function handle_file_conflict(source_path, target_path)
+        local action = resolve_conflict(target_path, source_path, options)
+        if action == "quit" then return "quit" end
+        if action == "backup" then
+            local backup_path = get_backup_path(target_path, target_dir)
+            plan_mod.add_task(plan, plan_mod.ACTION_BACKUP, target_path, nil, { backup_path = backup_path })
+            local rel_source = fs.relative(fs.dirname(target_path), source_path)
+            plan_mod.add_task(plan, plan_mod.ACTION_LINK, target_path, rel_source)
+        elseif action == "overwrite" then
+            plan_mod.add_task(plan, plan_mod.ACTION_UNLINK, target_path)
+            local rel_source = fs.relative(fs.dirname(target_path), source_path)
+            plan_mod.add_task(plan, plan_mod.ACTION_LINK, target_path, rel_source)
+        end
+        return "ok"
+    end
+
     local function process_dir(pkg_subdir, target_subdir)
         local entries = fs.dir(pkg_subdir)
 
@@ -135,47 +184,26 @@ function module.plan_link(source_dir, package, target_dir, options)
                     if existing_pkg_path then
                         log.debug("unfolding " .. target_path, options.verbose)
                         tree.unfold(target_path, existing_pkg_path, plan)
-                        process_dir(source_path, target_path)
+                        if not process_dir(source_path, target_path) then return false end
                     else
                         local resolved = fs.resolve_symlink(target_path)
                         if resolved and fs.is_directory(resolved) then
                             plan_mod.add_conflict(plan, target_path, "symlink to different package")
                         else
-                            local action = ask_conflict(target_path, options)
-                            if action == "quit" then
-                                return false
-                            elseif action == "backup" then
-                                local backup_path = get_backup_path(target_path, target_dir)
-                                local opts = { backup_path = backup_path }
-                                plan_mod.add_task(plan, plan_mod.ACTION_BACKUP, target_path, nil, opts)
-                                plan_mod.add_task(plan, plan_mod.ACTION_MKDIR, target_path)
-                                process_dir(source_path, target_path)
-                            elseif action == "overwrite" then
-                                plan_mod.add_task(plan, plan_mod.ACTION_UNLINK, target_path)
-                                plan_mod.add_task(plan, plan_mod.ACTION_MKDIR, target_path)
-                                process_dir(source_path, target_path)
+                            local result = handle_dir_conflict(source_path, target_path)
+                            if result == "quit" then return false end
+                            if result == "continue" then
+                                if not process_dir(source_path, target_path) then return false end
                             end
                         end
                     end
                 elseif plan_mod.is_a_dir(plan, target_path) then
-                    process_dir(source_path, target_path)
+                    if not process_dir(source_path, target_path) then return false end
                 elseif fs.exists(target_path) then
-                    local action = ask_conflict(target_path, options)
-                    if action == "quit" then
-                        return false
-                    elseif action == "diff" then
-                        show_diff(source_path, target_path)
-                        action = ask_conflict(target_path, options)
-                    end
-                    if action == "backup" then
-                        local backup_path = get_backup_path(target_path, target_dir)
-                        plan_mod.add_task(plan, plan_mod.ACTION_BACKUP, target_path, nil, { backup_path = backup_path })
-                        plan_mod.add_task(plan, plan_mod.ACTION_MKDIR, target_path)
-                        process_dir(source_path, target_path)
-                    elseif action == "overwrite" then
-                        plan_mod.add_task(plan, plan_mod.ACTION_UNLINK, target_path)
-                        plan_mod.add_task(plan, plan_mod.ACTION_MKDIR, target_path)
-                        process_dir(source_path, target_path)
+                    local result = handle_dir_conflict(source_path, target_path)
+                    if result == "quit" then return false end
+                    if result == "continue" then
+                        if not process_dir(source_path, target_path) then return false end
                     end
                 else
                     local rel_source = fs.relative(target_subdir, source_path)
@@ -187,46 +215,12 @@ function module.plan_link(source_dir, package, target_dir, options)
                     if fs.symlink_points_to(target_path, source_path) then
                         log.debug("already linked " .. target_path, options.verbose)
                     else
-                        local action = ask_conflict(target_path, options)
-                        if action == "quit" then
-                            return false
-                        elseif action == "diff" then
-                            local resolved = fs.resolve_symlink(target_path)
-                            if resolved then
-                                show_diff(source_path, resolved)
-                            end
-                            action = ask_conflict(target_path, options)
-                        end
-                        if action == "backup" then
-                            local backup_path = get_backup_path(target_path, target_dir)
-                            local opts = { backup_path = backup_path }
-                            plan_mod.add_task(plan, plan_mod.ACTION_BACKUP, target_path, nil, opts)
-                            local rel_source = fs.relative(fs.dirname(target_path), source_path)
-                            plan_mod.add_task(plan, plan_mod.ACTION_LINK, target_path, rel_source)
-                        elseif action == "overwrite" then
-                            plan_mod.add_task(plan, plan_mod.ACTION_UNLINK, target_path)
-                            local rel_source = fs.relative(fs.dirname(target_path), source_path)
-                            plan_mod.add_task(plan, plan_mod.ACTION_LINK, target_path, rel_source)
-                        end
+                        local result = handle_file_conflict(source_path, target_path)
+                        if result == "quit" then return false end
                     end
                 elseif fs.exists(target_path) then
-                    local action = ask_conflict(target_path, options)
-                    if action == "quit" then
-                        return false
-                    elseif action == "diff" then
-                        show_diff(source_path, target_path)
-                        action = ask_conflict(target_path, options)
-                    end
-                    if action == "backup" then
-                        local backup_path = get_backup_path(target_path, target_dir)
-                        plan_mod.add_task(plan, plan_mod.ACTION_BACKUP, target_path, nil, { backup_path = backup_path })
-                        local rel_source = fs.relative(fs.dirname(target_path), source_path)
-                        plan_mod.add_task(plan, plan_mod.ACTION_LINK, target_path, rel_source)
-                    elseif action == "overwrite" then
-                        plan_mod.add_task(plan, plan_mod.ACTION_UNLINK, target_path)
-                        local rel_source = fs.relative(fs.dirname(target_path), source_path)
-                        plan_mod.add_task(plan, plan_mod.ACTION_LINK, target_path, rel_source)
-                    end
+                    local result = handle_file_conflict(source_path, target_path)
+                    if result == "quit" then return false end
                 else
                     local rel_source = fs.relative(fs.dirname(target_path), source_path)
                     plan_mod.add_task(plan, plan_mod.ACTION_LINK, target_path, rel_source)
@@ -238,7 +232,10 @@ function module.plan_link(source_dir, package, target_dir, options)
         return true
     end
 
-    process_dir(pkg_dir, target_dir)
+    local ok = process_dir(pkg_dir, target_dir)
+    if not ok then
+        return plan_mod.new()
+    end
     return plan
 end
 
