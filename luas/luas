@@ -1097,22 +1097,13 @@ end
 local function build_targets_parallel(spec, output_name, targets)
     log("info", "building "..#targets.." targets in parallel")
 
-    local zig_bin = ensure_zig()
+    ensure_zig()
     ensure_lua_source()
 
     for _, dep in ipairs(spec.c_deps) do
         local info = resolve_clib(dep)
         if info then
             fetch_clib_source(info)
-        end
-    end
-
-    log("info", "pre-building dependencies for all targets")
-    for _, target in ipairs(targets) do
-        local zig_target = TARGET_MAP[target]
-        local lua_incdir = build_lua_for_target(zig_bin, zig_target)
-        for _, dep in ipairs(spec.c_deps) do
-            build_clib_for_target(zig_bin, zig_target, lua_incdir, dep)
         end
     end
 
