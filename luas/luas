@@ -276,6 +276,7 @@ Options:
     -v, --verbose   Show detailed output
     -m, --main      Main entry point (enables standalone mode, no rockspec needed)
     -c, --clib      C library dependency (can be repeated: -c lfs -c lpeg)
+    -e, --embed     Embed data file/directory (can be repeated: -e assets/)
     -r, --rockspec  Path to rockspec file (default: auto-detect)
     -t, --target    Cross-compile for target (can be repeated)
                     C deps (lpeg, lfs) are auto-built from rockspec
@@ -310,6 +311,11 @@ Standalone mode (no rockspec):
     luas -m app.lua myapp
     luas -m app.lua lib/ -t linux-x86_64 myapp
     luas -m app.lua -c lfs -c lpeg myapp
+
+Embedding data files:
+    luas -m app.lua -e templates/ -e config.json myapp
+    local embed = require("luas.embed")
+    local data = embed.read("templates/page.html")
 ]],
 		colors.bold,
 		colors.reset
@@ -885,7 +891,7 @@ local function string_to_c_hex_literal(characters)
 	return table.concat(hex, ", ")
 end
 
-local function generate_c_source(lua_source_files, module_library_files)
+local function generate_c_source(lua_source_files, module_library_files, embed_files)
 	local mainlua = lua_source_files[1]
 	local outfilename = BUILD_DIR .. "/" .. basename(mainlua.path):gsub("%.lua$", "") .. ".luastatic.c"
 	local outfile = io.open(outfilename, "w+")
@@ -1104,6 +1110,59 @@ end
 		out(('    lua_setfield(L, -2, "%s");\n\n'):format(library.dotpath_noextension))
 	end
 
+	embed_files = embed_files or {}
+	if #embed_files > 0 then
+		for i, path in ipairs(embed_files) do
+			out(("    static const unsigned char embed_data_%i[] = {\n        "):format(i))
+			local f = io.open(path, "rb")
+			if f then
+				while true do
+					local data = f:read(4096)
+					if data then
+						out(string_to_c_hex_literal(data), ", ")
+					else
+						break
+					end
+				end
+				f:close()
+			end
+			out("\n    };\n")
+		end
+
+		out("    lua_newtable(L);\n")
+		for i, path in ipairs(embed_files) do
+			local key = path:gsub("^%./", "")
+			out(("    lua_pushlstring(L, (const char*)embed_data_%i, sizeof(embed_data_%i));\n"):format(i, i))
+			out(('    lua_setfield(L, -2, "%s");\n'):format(key))
+		end
+		out("    lua_setglobal(L, \"__luas_embed_data\");\n\n")
+
+		local embed_module = [[
+local embed_data = __luas_embed_data or {}
+local M = {}
+function M.read(path)
+    return embed_data[path]
+end
+function M.exists(path)
+    return embed_data[path] ~= nil
+end
+function M.list()
+    local files = {}
+    for k in pairs(embed_data) do
+        files[#files + 1] = k
+    end
+    table.sort(files)
+    return files
+end
+return M
+]]
+		out("    static const unsigned char luas_embed_module[] = {\n        ")
+		out(string_to_c_hex_literal(embed_module))
+		out("\n    };\n")
+		out("    lua_pushlstring(L, (const char*)luas_embed_module, sizeof(luas_embed_module));\n")
+		out("    lua_setfield(L, -2, \"luas.embed\");\n\n")
+	end
+
 	out([[
     if (docall(L, 1, LUA_MULTRET))
     {
@@ -1167,7 +1226,7 @@ local function build_binary(spec, output_name, lua_incdir, lua_static_lib, clib_
 	local lua_source_files = prepare_sources(spec)
 	local module_library_files = find_luaopen_symbols(clib_files)
 
-	local outfilename = generate_c_source(lua_source_files, module_library_files)
+	local outfilename = generate_c_source(lua_source_files, module_library_files, spec.embeds)
 
 	local uname = shellout("uname -s")
 	local rdynamic = "-rdynamic"
@@ -1237,7 +1296,7 @@ local function build_for_target(spec, output_name, target)
 
 	local lua_source_files = prepare_sources(spec)
 
-	local outfilename = generate_c_source(lua_source_files, module_library_files)
+	local outfilename = generate_c_source(lua_source_files, module_library_files, spec.embeds)
 
 	local cc = string.format('"%s" cc -target %s', zig_bin, zig_target)
 
@@ -1402,6 +1461,7 @@ local function parse_args(args)
 		main = nil,
 		clibs = {},
 		modules = {},
+		embeds = {},
 		output = nil,
 		targets = {},
 	}
@@ -1422,6 +1482,9 @@ local function parse_args(args)
 		elseif a == "-c" or a == "--clib" then
 			i = i + 1
 			table.insert(opts.clibs, args[i])
+		elseif a == "-e" or a == "--embed" then
+			i = i + 1
+			table.insert(opts.embeds, args[i])
 		elseif a == "-r" or a == "--rockspec" then
 			i = i + 1
 			opts.rockspec = args[i]
@@ -1493,6 +1556,35 @@ local function collect_lua_files(path)
 	return files
 end
 
+local function collect_embed_files(paths)
+	local files = {}
+	local seen = {}
+	for _, path in ipairs(paths) do
+		path = path:gsub("/+$", "")
+		if file_exists(path) and not dir_exists(path) then
+			if not seen[path] then
+				seen[path] = true
+				table.insert(files, path)
+			end
+		elseif dir_exists(path) then
+			for _, f in ipairs(glob(path .. "/*")) do
+				if file_exists(f) and not dir_exists(f) and not seen[f] then
+					seen[f] = true
+					table.insert(files, f)
+				end
+			end
+			for _, f in ipairs(glob(path .. "/**/*")) do
+				if file_exists(f) and not dir_exists(f) and not seen[f] then
+					seen[f] = true
+					table.insert(files, f)
+				end
+			end
+		end
+	end
+	table.sort(files)
+	return files
+end
+
 local function create_standalone_spec(opts)
 	if not file_exists(opts.main) then
 		log("error", "main file not found: " .. opts.main)
@@ -1509,6 +1601,8 @@ local function create_standalone_spec(opts)
 	end
 	table.sort(module_files)
 
+	local embed_files = collect_embed_files(opts.embeds)
+
 	local name = opts.output or basename(opts.main):gsub("%.lua$", "")
 
 	log("success", "main: " .. opts.main)
@@ -1516,12 +1610,16 @@ local function create_standalone_spec(opts)
 	if #opts.clibs > 0 then
 		log("success", "C dependencies: " .. table.concat(opts.clibs, ", "))
 	end
+	if #embed_files > 0 then
+		log("success", "embedded files: " .. #embed_files)
+	end
 
 	return {
 		name = name,
 		bin = opts.main,
 		modules = module_files,
 		c_deps = opts.clibs,
+		embeds = embed_files,
 	}
 end
 
@@ -1541,6 +1639,10 @@ local function main(args)
 	else
 		local rockspec_path = find_rockspec(opts.rockspec)
 		spec = parse_rockspec(rockspec_path)
+		spec.embeds = collect_embed_files(opts.embeds)
+		if #spec.embeds > 0 then
+			log("success", "embedded files: " .. #spec.embeds)
+		end
 	end
 
 	local output_name = opts.output or spec.name
