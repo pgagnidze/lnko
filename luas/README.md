@@ -63,6 +63,24 @@ luas -m app.lua -c lfs -c lpeg myapp
 luas -m app.lua lib/ -c lfs -t linux-x86_64 -t darwin-arm64 myapp
 ```
 
+### Using LuaRocks Modules
+
+Include modules installed via LuaRocks by specifying their paths directly:
+
+```bash
+# Install modules with luarocks
+luarocks install --local inspect
+luarocks install --local penlight
+
+# Include in build (module names computed automatically)
+luas -m app.lua ~/.luarocks/share/lua/5.4/inspect.lua myapp
+luas -m app.lua ~/.luarocks/share/lua/5.4/pl/ myapp
+```
+
+Module names are computed relative to parent directory:
+- `~/.luarocks/share/lua/5.4/inspect.lua` → `require("inspect")`
+- `~/.luarocks/share/lua/5.4/pl/path.lua` → `require("pl.path")`
+
 ## Embedding Data Files
 
 Embed static assets (templates, configs, etc.) into the binary:

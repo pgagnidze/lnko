@@ -1185,12 +1185,16 @@ end
 
 -- build --
 
-local function make_source_info(path)
+local function make_source_info(path, base)
 	local info = {}
 	info.path = path
 	info.basename = basename(path)
 	info.basename_noextension = info.basename:match("(.+)%.") or info.basename
-	info.dotpath = path:gsub("^%.%/", ""):gsub("[\\/]", ".")
+	local relpath = path
+	if base and base ~= "" and path:sub(1, #base) == base then
+		relpath = path:sub(#base + 1)
+	end
+	info.dotpath = relpath:gsub("^%.%/", ""):gsub("[\\/]", ".")
 	info.dotpath_noextension = info.dotpath:match("(.+)%.") or info.dotpath
 	info.dotpath_underscore = info.dotpath_noextension:gsub("[.-]", "_")
 	return info
@@ -1200,7 +1204,11 @@ local function prepare_sources(spec)
 	local lua_source_files = {}
 	table.insert(lua_source_files, make_source_info(spec.bin))
 	for _, f in ipairs(spec.modules) do
-		table.insert(lua_source_files, make_source_info(f))
+		if type(f) == "table" then
+			table.insert(lua_source_files, make_source_info(f.path, f.base))
+		else
+			table.insert(lua_source_files, make_source_info(f))
+		end
 	end
 	return lua_source_files
 end
@@ -1543,14 +1551,22 @@ local function collect_lua_files(path)
 	local files = {}
 	if path:match("%.lua$") then
 		if file_exists(path) then
-			table.insert(files, path)
+			local base = path:match("^(.*)/[^/]+$") or ""
+			if base ~= "" then
+				base = base .. "/"
+			end
+			table.insert(files, { path = path, base = base })
 		end
 	elseif dir_exists(path) then
+		local base = path:match("^(.*)/[^/]+$") or ""
+		if base ~= "" then
+			base = base .. "/"
+		end
 		for _, f in ipairs(glob(path .. "/*.lua")) do
-			table.insert(files, f)
+			table.insert(files, { path = f, base = base })
 		end
 		for _, f in ipairs(glob(path .. "/**/*.lua")) do
-			table.insert(files, f)
+			table.insert(files, { path = f, base = base })
 		end
 	end
 	return files
@@ -1594,12 +1610,12 @@ local function create_standalone_spec(opts)
 	local module_files = {}
 	for _, path in ipairs(opts.modules) do
 		for _, f in ipairs(collect_lua_files(path)) do
-			if f ~= opts.main then
+			if f.path ~= opts.main then
 				table.insert(module_files, f)
 			end
 		end
 	end
-	table.sort(module_files)
+	table.sort(module_files, function(a, b) return a.path < b.path end)
 
 	local embed_files = collect_embed_files(opts.embeds)
 
