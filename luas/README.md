@@ -215,6 +215,12 @@ jobs:
           path: myapp-*
 ```
 
+## Limitations
+
+- Linux cross-compiled binaries use musl libc (not glibc)
+- No automatic dependency resolution from LuaRocks
+- No LuaJIT support
+
 ## Credits
 
 Based on [luastatic](https://github.com/ers35/luastatic) by ers35.
