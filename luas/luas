@@ -264,15 +264,18 @@ local function show_help()
 
 Build a standalone binary from a LuaRocks project.
 
-Usage: luas [options] [output-name]
+Usage: luas [options] [modules...] [output-name]
 
 Arguments:
-    output-name     Name of output binary (default: <package>)
+    modules...      Lua files or directories to include as modules
+    output-name     Name of output binary (default: <package> or main filename)
 
 Options:
     -h, --help      Show this help message
     -q, --quiet     Only show errors and warnings
     -v, --verbose   Show detailed output
+    -m, --main      Main entry point (enables standalone mode, no rockspec needed)
+    -c, --clib      C library dependency (can be repeated: -c lfs -c lpeg)
     -r, --rockspec  Path to rockspec file (default: auto-detect)
     -t, --target    Cross-compile for target (can be repeated)
                     C deps (lpeg, lfs) are auto-built from rockspec
@@ -302,6 +305,11 @@ Examples:
     luas myapp
     luas -t linux-x86_64 myapp
     luas -t linux-x86_64 -t linux-arm64 myapp
+
+Standalone mode (no rockspec):
+    luas -m app.lua myapp
+    luas -m app.lua lib/ -t linux-x86_64 myapp
+    luas -m app.lua -c lfs -c lpeg myapp
 ]],
 		colors.bold,
 		colors.reset
@@ -1391,9 +1399,13 @@ end
 local function parse_args(args)
 	local opts = {
 		rockspec = nil,
+		main = nil,
+		clibs = {},
+		modules = {},
 		output = nil,
 		targets = {},
 	}
+	local positionals = {}
 	local i = 1
 	while i <= #args do
 		local a = args[i]
@@ -1404,6 +1416,12 @@ local function parse_args(args)
 			log_level = 0
 		elseif a == "-v" or a == "--verbose" then
 			log_level = 2
+		elseif a == "-m" or a == "--main" then
+			i = i + 1
+			opts.main = args[i]
+		elseif a == "-c" or a == "--clib" then
+			i = i + 1
+			table.insert(opts.clibs, args[i])
 		elseif a == "-r" or a == "--rockspec" then
 			i = i + 1
 			opts.rockspec = args[i]
@@ -1421,10 +1439,17 @@ local function parse_args(args)
 				os.exit(1)
 			end
 			table.insert(opts.targets, target)
-		elseif not opts.output then
-			opts.output = a
+		elseif a:sub(1, 1) ~= "-" then
+			table.insert(positionals, a)
 		end
 		i = i + 1
+	end
+	for _, p in ipairs(positionals) do
+		if p:match("%.lua$") or dir_exists(p) then
+			table.insert(opts.modules, p)
+		else
+			opts.output = p
+		end
 	end
 	return opts
 end
@@ -1450,6 +1475,56 @@ local function check_dependencies()
 	log("success", "all dependencies found")
 end
 
+local function collect_lua_files(path)
+	path = path:gsub("/+$", "")
+	local files = {}
+	if path:match("%.lua$") then
+		if file_exists(path) then
+			table.insert(files, path)
+		end
+	elseif dir_exists(path) then
+		for _, f in ipairs(glob(path .. "/*.lua")) do
+			table.insert(files, f)
+		end
+		for _, f in ipairs(glob(path .. "/**/*.lua")) do
+			table.insert(files, f)
+		end
+	end
+	return files
+end
+
+local function create_standalone_spec(opts)
+	if not file_exists(opts.main) then
+		log("error", "main file not found: " .. opts.main)
+		os.exit(1)
+	end
+
+	local module_files = {}
+	for _, path in ipairs(opts.modules) do
+		for _, f in ipairs(collect_lua_files(path)) do
+			if f ~= opts.main then
+				table.insert(module_files, f)
+			end
+		end
+	end
+	table.sort(module_files)
+
+	local name = opts.output or basename(opts.main):gsub("%.lua$", "")
+
+	log("success", "main: " .. opts.main)
+	log("success", "modules: " .. #module_files .. " files")
+	if #opts.clibs > 0 then
+		log("success", "C dependencies: " .. table.concat(opts.clibs, ", "))
+	end
+
+	return {
+		name = name,
+		bin = opts.main,
+		modules = module_files,
+		c_deps = opts.clibs,
+	}
+end
+
 local function main(args)
 	setup_colors()
 	local opts = parse_args(args)
@@ -1460,8 +1535,13 @@ local function main(args)
 
 	mkdir(BUILD_DIR)
 
-	local rockspec_path = find_rockspec(opts.rockspec)
-	local spec = parse_rockspec(rockspec_path)
+	local spec
+	if opts.main then
+		spec = create_standalone_spec(opts)
+	else
+		local rockspec_path = find_rockspec(opts.rockspec)
+		spec = parse_rockspec(rockspec_path)
+	end
 
 	local output_name = opts.output or spec.name
 
