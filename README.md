@@ -102,6 +102,7 @@ lnko clean
 | `-s, --skip` | Auto-skip conflicts |
 | `-f, --force` | Auto-overwrite conflicts (dangerous) |
 | `--ignore <pattern>` | Ignore files matching pattern (can be repeated) |
+| `--no-folding` | Don't fold directories into symlinks |
 
 ### Conflict Handling
 
