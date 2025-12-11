@@ -55,7 +55,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Build all targets
-        uses: ./luas
+        uses: ./luast
         with:
           output: lnko
           targets: linux-x86_64 linux-arm64 darwin-x86_64 darwin-arm64 windows-x86_64 windows-arm64
