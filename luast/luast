@@ -6,7 +6,7 @@ local CC = os.getenv("CC") or "cc"
 local AR = os.getenv("AR") or "ar"
 local NM = os.getenv("NM") or "nm"
 local BUILD_DIR = os.getenv("BUILD_DIR") or ".build"
-local CACHE_DIR = os.getenv("LUAS_CACHE") or (os.getenv("HOME") or os.getenv("USERPROFILE") or ".") .. "/.cache/luas"
+local CACHE_DIR = os.getenv("LUAST_CACHE") or (os.getenv("HOME") or os.getenv("USERPROFILE") or ".") .. "/.cache/luast"
 
 local ZIG_VERSION = "0.14.0"
 local ZIG_URLS = {
@@ -100,8 +100,8 @@ local CLIB_REGISTRY = {
 	},
 }
 
-local function load_luasrc()
-	local path = ".luasrc"
+local function load_luastrc()
+	local path = ".luastrc"
 	local f = io.open(path, "r")
 	if not f then
 		return
@@ -128,7 +128,7 @@ local function load_luasrc()
 	end
 end
 
-load_luasrc()
+load_luastrc()
 
 local colors = { red = "", green = "", yellow = "", blue = "", bold = "", reset = "" }
 
@@ -260,11 +260,11 @@ end
 local function show_help()
 	print(string.format(
 		[[
-%sluas%s - lua standalone build
+%sluast%s - lua standalone build
 
 Build a standalone binary from a LuaRocks project.
 
-Usage: luas [options] [modules...] [output-name]
+Usage: luast [options] [modules...] [output-name]
 
 Arguments:
     modules...      Lua files or directories to include as modules
@@ -288,11 +288,11 @@ Options:
 
 Environment:
     BUILD_DIR       Build directory (default: .build)
-    LUAS_CACHE      Cache directory for zig/lua (default: ~/.cache/luas)
+    LUAST_CACHE      Cache directory for zig/lua (default: ~/.cache/luast)
     LUA_VERSION     Lua version to use (default: 5.4.7)
     CC              C compiler (default: cc, ignored with --target)
 
-Config file (.luasrc):
+Config file (.luastrc):
     Define custom C libraries as a Lua table:
         return {
             mylib = {
@@ -302,19 +302,19 @@ Config file (.luasrc):
         }
 
 Examples:
-    luas
-    luas myapp
-    luas -t linux-x86_64 myapp
-    luas -t linux-x86_64 -t linux-arm64 myapp
+    luast
+    luast myapp
+    luast -t linux-x86_64 myapp
+    luast -t linux-x86_64 -t linux-arm64 myapp
 
 Standalone mode (no rockspec):
-    luas -m app.lua myapp
-    luas -m app.lua lib/ -t linux-x86_64 myapp
-    luas -m app.lua -c lfs -c lpeg myapp
+    luast -m app.lua myapp
+    luast -m app.lua lib/ -t linux-x86_64 myapp
+    luast -m app.lua -c lfs -c lpeg myapp
 
 Embedding data files:
-    luas -m app.lua -e templates/ -e config.json myapp
-    local embed = require("luas.embed")
+    luast -m app.lua -e templates/ -e config.json myapp
+    local embed = require("luast.embed")
     local data = embed.read("templates/page.html")
 ]],
 		colors.bold,
@@ -1135,10 +1135,10 @@ end
 			out(("    lua_pushlstring(L, (const char*)embed_data_%i, sizeof(embed_data_%i));\n"):format(i, i))
 			out(('    lua_setfield(L, -2, "%s");\n'):format(key))
 		end
-		out("    lua_setglobal(L, \"__luas_embed_data\");\n\n")
+		out("    lua_setglobal(L, \"__luast_embed_data\");\n\n")
 
 		local embed_module = [[
-local embed_data = __luas_embed_data or {}
+local embed_data = __luast_embed_data or {}
 local M = {}
 function M.read(path)
     return embed_data[path]
@@ -1156,11 +1156,11 @@ function M.list()
 end
 return M
 ]]
-		out("    static const unsigned char luas_embed_module[] = {\n        ")
+		out("    static const unsigned char luast_embed_module[] = {\n        ")
 		out(string_to_c_hex_literal(embed_module))
 		out("\n    };\n")
-		out("    lua_pushlstring(L, (const char*)luas_embed_module, sizeof(luas_embed_module));\n")
-		out("    lua_setfield(L, -2, \"luas.embed\");\n\n")
+		out("    lua_pushlstring(L, (const char*)luast_embed_module, sizeof(luast_embed_module));\n")
+		out("    lua_setfield(L, -2, \"luast.embed\");\n\n")
 	end
 
 	out([[
@@ -1674,7 +1674,7 @@ local function main(args)
 
 	if dir_exists("./" .. output_name) then
 		io.stdout:flush()
-		log("error", "'" .. output_name .. "' is a directory, use: luas <output-name>")
+		log("error", "'" .. output_name .. "' is a directory, use: luast <output-name>")
 		os.exit(1)
 	end
 

@@ -1,10 +1,10 @@
-# luas
+# luast
 
 Build standalone Lua binaries with cross-compilation support.
 
 ## Overview
 
-luas builds single-file executables from LuaRocks projects. It embeds Lua source files into a static binary that runs without any runtime dependencies.
+luast builds single-file executables from LuaRocks projects. It embeds Lua source files into a static binary that runs without any runtime dependencies.
 
 **Key feature:** Cross-compile from Linux/macOS to any supported target using Zig as the C compiler.
 
@@ -12,16 +12,16 @@ luas builds single-file executables from LuaRocks projects. It embeds Lua source
 
 ```bash
 # Build for current platform
-./luas myapp
+./luast myapp
 
 # Cross-compile for multiple targets
-./luas -t linux-x86_64 -t linux-arm64 -t darwin-arm64 -t windows-x86_64 myapp
+./luast -t linux-x86_64 -t linux-arm64 -t darwin-arm64 -t windows-x86_64 myapp
 ```
 
 ## CLI Usage
 
 ```
-luas [options] [modules...] [output-name]
+luast [options] [modules...] [output-name]
 
 Options:
     -h, --help      Show help message
@@ -40,7 +40,7 @@ Available targets:
 
 Environment:
     BUILD_DIR       Build directory (default: .build)
-    LUAS_CACHE      Cache directory for zig/lua (default: ~/.cache/luas)
+    LUAST_CACHE      Cache directory for zig/lua (default: ~/.cache/luast)
     LUA_VERSION     Lua version to build (default: 5.4.7)
     CC              C compiler (default: cc, ignored with --target)
 ```
@@ -51,16 +51,16 @@ Build without a rockspec using the `--main` flag:
 
 ```bash
 # Simple script
-luas -m app.lua myapp
+luast -m app.lua myapp
 
 # With module directories
-luas -m app.lua lib/ src/ myapp
+luast -m app.lua lib/ src/ myapp
 
 # With C libraries
-luas -m app.lua -c lfs -c lpeg myapp
+luast -m app.lua -c lfs -c lpeg myapp
 
 # Cross-compile
-luas -m app.lua lib/ -c lfs -t linux-x86_64 -t darwin-arm64 myapp
+luast -m app.lua lib/ -c lfs -t linux-x86_64 -t darwin-arm64 myapp
 ```
 
 ### Using LuaRocks Modules
@@ -73,11 +73,12 @@ luarocks install --local inspect
 luarocks install --local penlight
 
 # Include in build (module names computed automatically)
-luas -m app.lua ~/.luarocks/share/lua/5.4/inspect.lua myapp
-luas -m app.lua ~/.luarocks/share/lua/5.4/pl/ myapp
+luast -m app.lua ~/.luarocks/share/lua/5.4/inspect.lua myapp
+luast -m app.lua ~/.luarocks/share/lua/5.4/pl/ myapp
 ```
 
 Module names are computed relative to parent directory:
+
 - `~/.luarocks/share/lua/5.4/inspect.lua` → `require("inspect")`
 - `~/.luarocks/share/lua/5.4/pl/path.lua` → `require("pl.path")`
 
@@ -86,13 +87,13 @@ Module names are computed relative to parent directory:
 Embed static assets (templates, configs, etc.) into the binary:
 
 ```bash
-luas -m app.lua -e templates/ -e config.json myapp
+luast -m app.lua -e templates/ -e config.json myapp
 ```
 
 Access embedded files at runtime:
 
 ```lua
-local embed = require("luas.embed")
+local embed = require("luast.embed")
 
 -- Read file contents
 local html = embed.read("templates/page.html")
@@ -129,7 +130,7 @@ C dependencies listed in rockspec are automatically built:
 
 ### Custom C Libraries
 
-Add custom C libraries via `.luasrc` config file:
+Add custom C libraries via `.luastrc` config file:
 
 ```lua
 return {
@@ -141,6 +142,7 @@ return {
 ```
 
 Fields:
+
 - `url` (required): Git repo or tarball URL
 - `sources` (required): List of C source files
 - `name`: Library name (defaults to key)
@@ -149,16 +151,19 @@ Fields:
 
 ## Requirements
 
-**Host (where luas runs):**
+**Host (where luast runs):**
+
 - Linux or macOS
 - Lua 5.1+
 - C compiler, ar, git
 - curl or wget
 
 **For native builds:**
+
 - Lua development files (lua.h, liblua.a)
 
 **For cross-compilation:**
+
 - No additional requirements (Zig is downloaded automatically)
 
 ## Output Binaries
@@ -177,7 +182,7 @@ Linux binaries are fully static (musl libc). No runtime dependencies.
 ## GitHub Action
 
 ```yaml
-- uses: pgagnidze/lnko/luas@main
+- uses: pgagnidze/lnko/luast@main
   with:
     output: myapp
     targets: linux-x86_64 linux-arm64 darwin-arm64 windows-x86_64
@@ -205,7 +210,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: pgagnidze/lnko/luas@main
+      - uses: pgagnidze/lnko/luast@main
         with:
           output: myapp
           targets: linux-x86_64 linux-arm64 darwin-arm64 windows-x86_64

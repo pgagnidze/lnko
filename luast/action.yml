@@ -1,4 +1,4 @@
-name: 'luas'
+name: 'luast'
 description: 'Build standalone Lua binaries with cross-compilation support'
 author: 'pgagnidze'
 
@@ -28,11 +28,11 @@ outputs:
 runs:
   using: 'composite'
   steps:
-    - name: Cache luas dependencies
+    - name: Cache luast dependencies
       uses: actions/cache@v4
       with:
-        path: ~/.cache/luas
-        key: luas-${{ runner.os }}
+        path: ~/.cache/luast
+        key: luast-${{ runner.os }}
 
     - name: Install Lua (Linux)
       if: runner.os == 'Linux'
@@ -50,7 +50,7 @@ runs:
       id: build
       shell: bash
       run: |
-        LUAS_SCRIPT="${{ github.action_path }}/luas"
+        LUAST_SCRIPT="${{ github.action_path }}/luast"
 
         if [ -n "${{ inputs.lua-version }}" ]; then
           export LUA_VERSION="${{ inputs.lua-version }}"
@@ -72,7 +72,7 @@ runs:
           ARGS="$ARGS ${{ inputs.output }}"
         fi
 
-        "$LUAS_SCRIPT" $ARGS
+        "$LUAST_SCRIPT" $ARGS
 
         OUTPUT="${{ inputs.output }}"
         if [ -z "$OUTPUT" ]; then
