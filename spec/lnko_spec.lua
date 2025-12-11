@@ -152,6 +152,26 @@ describe("lnko", function()
             assert.is_true(fs.is_symlink(target .. "/.config/nvim/lua/plugins/lazy.lua"))
             assert.is_true(fs.is_symlink(target .. "/.config/nvim/lua/plugins/telescope"))
         end)
+
+        it("should not fold with no_folding option", function()
+            local source = test_dir .. "/nofold_source"
+            local target = test_dir .. "/nofold_target"
+            os.execute("mkdir -p " .. source .. "/pkg/.config/app/nested")
+            os.execute("mkdir -p " .. target)
+            os.execute("echo 'config' > " .. source .. "/pkg/.config/app/settings")
+            os.execute("echo 'nested' > " .. source .. "/pkg/.config/app/nested/deep")
+
+            lnko.link_package(source, "pkg", target, { skip = true, no_folding = true })
+
+            assert.is_true(fs.is_directory(target .. "/.config"))
+            assert.is_false(fs.is_symlink(target .. "/.config"))
+            assert.is_true(fs.is_directory(target .. "/.config/app"))
+            assert.is_false(fs.is_symlink(target .. "/.config/app"))
+            assert.is_true(fs.is_directory(target .. "/.config/app/nested"))
+            assert.is_false(fs.is_symlink(target .. "/.config/app/nested"))
+            assert.is_true(fs.is_symlink(target .. "/.config/app/settings"))
+            assert.is_true(fs.is_symlink(target .. "/.config/app/nested/deep"))
+        end)
     end)
 
     describe("conflict detection", function()

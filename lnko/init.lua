@@ -206,9 +206,14 @@ function module.plan_link(source_dir, package, target_dir, options)
                         if not process_dir(source_path, target_path) then return false end
                     end
                 else
-                    local rel_source = fs.relative(target_subdir, source_path)
-                    plan_mod.add_task(plan, plan_mod.ACTION_LINK, target_path, rel_source)
-                    log.debug("planned folder link " .. target_path .. " -> " .. rel_source, options.verbose)
+                    if options.no_folding then
+                        plan_mod.add_task(plan, plan_mod.ACTION_MKDIR, target_path)
+                        if not process_dir(source_path, target_path) then return false end
+                    else
+                        local rel_source = fs.relative(target_subdir, source_path)
+                        plan_mod.add_task(plan, plan_mod.ACTION_LINK, target_path, rel_source)
+                        log.debug("planned folder link " .. target_path .. " -> " .. rel_source, options.verbose)
+                    end
                 end
             else
                 if plan_mod.is_a_link(plan, target_path) then
@@ -551,6 +556,7 @@ Options:
   -s, --skip            Auto-skip conflicts
   -f, --force           Auto-overwrite conflicts (dangerous)
   --ignore <pattern>    Ignore files matching pattern (can be repeated)
+  --no-folding          Don't fold directories into symlinks
   --remove-orphans      Auto-remove orphan symlinks
   --keep-orphans        Auto-keep orphan symlinks
   -h, --help            Show this help
@@ -583,6 +589,7 @@ function module.main(args)
         skip = false,
         force = false,
         ignore = {},
+        no_folding = false,
         remove_orphans = false,
         keep_orphans = false,
     }
@@ -615,6 +622,8 @@ function module.main(args)
         elseif a == "--ignore" then
             i = i + 1
             options.ignore[#options.ignore + 1] = args[i]
+        elseif a == "--no-folding" then
+            options.no_folding = true
         elseif a == "--remove-orphans" then
             options.remove_orphans = true
         elseif a == "--keep-orphans" then
