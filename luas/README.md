@@ -21,12 +21,15 @@ luas builds single-file executables from LuaRocks projects. It embeds Lua source
 ## CLI Usage
 
 ```
-luas [options] [output-name]
+luas [options] [modules...] [output-name]
 
 Options:
     -h, --help      Show help message
     -q, --quiet     Only show errors and warnings
     -v, --verbose   Show detailed output
+    -m, --main      Main entry point (standalone mode, no rockspec needed)
+    -c, --clib      C library dependency (can be repeated)
+    -e, --embed     Embed data file/directory (can be repeated)
     -r, --rockspec  Path to rockspec file (default: auto-detect)
     -t, --target    Cross-compile for target (can be repeated)
 
@@ -42,14 +45,60 @@ Environment:
     CC              C compiler (default: cc, ignored with --target)
 ```
 
+## Standalone Mode
+
+Build without a rockspec using the `--main` flag:
+
+```bash
+# Simple script
+luas -m app.lua myapp
+
+# With module directories
+luas -m app.lua lib/ src/ myapp
+
+# With C libraries
+luas -m app.lua -c lfs -c lpeg myapp
+
+# Cross-compile
+luas -m app.lua lib/ -c lfs -t linux-x86_64 -t darwin-arm64 myapp
+```
+
+## Embedding Data Files
+
+Embed static assets (templates, configs, etc.) into the binary:
+
+```bash
+luas -m app.lua -e templates/ -e config.json myapp
+```
+
+Access embedded files at runtime:
+
+```lua
+local embed = require("luas.embed")
+
+-- Read file contents
+local html = embed.read("templates/page.html")
+
+-- Check if file exists
+if embed.exists("config.json") then
+    local config = embed.read("config.json")
+end
+
+-- List all embedded files
+for _, path in ipairs(embed.list()) do
+    print(path)
+end
+```
+
 ## How It Works
 
-1. Parses rockspec to find entry point and modules
-2. Auto-detects C dependencies (lpeg, luafilesystem) from rockspec
+1. Parses rockspec (or uses `--main` for standalone mode)
+2. Auto-detects C dependencies from rockspec (or uses `-c` flags)
 3. Downloads and caches Zig toolchain for cross-compilation
-4. Builds Lua and C libraries from source for each target
-5. Embeds Lua source as C arrays
-6. Compiles to static binary
+4. Fetches C library sources in parallel
+5. Builds Lua and C libraries with content-hashed caching
+6. Embeds Lua source and data files as C arrays
+7. Compiles to static binary
 
 ## C Library Support
 
