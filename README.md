@@ -103,6 +103,8 @@ lnko clean
 | `-f, --force` | Auto-overwrite conflicts (dangerous) |
 | `--ignore <pattern>` | Ignore files matching pattern (can be repeated) |
 | `--no-folding` | Don't fold directories into symlinks |
+| `--remove-orphans` | Auto-remove orphan symlinks (for `clean` command) |
+| `--keep-orphans` | Auto-keep orphan symlinks (for `clean` command) |
 
 ### Conflict Handling
 
