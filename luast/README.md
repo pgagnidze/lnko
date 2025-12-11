@@ -41,7 +41,7 @@ Available targets:
 Environment:
     BUILD_DIR       Build directory (default: .build)
     LUAST_CACHE      Cache directory for zig/lua (default: ~/.cache/luast)
-    LUA_VERSION     Lua version to build (default: 5.4.7)
+    LUA_VERSION     Lua version to build (default: 5.4.8)
     CC              C compiler (default: cc, ignored with --target)
 ```
 
