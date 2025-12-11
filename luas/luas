@@ -197,6 +197,19 @@ local function download_file(url, dest)
 	return false
 end
 
+local function hash_string(str)
+	local hash = 5381
+	for i = 1, #str do
+		hash = ((hash * 33) + str:byte(i)) % 0x100000000
+	end
+	return string.format("%08x", hash)
+end
+
+local function cache_key(...)
+	local parts = { ... }
+	return hash_string(table.concat(parts, "|")):sub(1, 8)
+end
+
 local function setup_colors()
 	local force = os.getenv("FORCE_COLOR")
 	local no_color = os.getenv("NO_COLOR")
@@ -409,7 +422,7 @@ end
 
 local function build_lua_for_target(zig_bin, zig_target)
 	local lua_src = ensure_lua_source()
-	local target_build_dir = CACHE_DIR .. "/lua-" .. LUA_VERSION .. "-" .. zig_target
+	local target_build_dir = CACHE_DIR .. "/lua-" .. cache_key("lua", LUA_VERSION, zig_target)
 	local liblua_a = target_build_dir .. "/liblua.a"
 
 	if file_exists(liblua_a) then
@@ -499,6 +512,73 @@ local function fetch_clib_source(info)
 	return src_dir
 end
 
+local function fetch_clibs_parallel(clib_names)
+	local to_fetch = {}
+	for _, name in ipairs(clib_names) do
+		local info = resolve_clib(name)
+		if info then
+			local src_dir = BUILD_DIR .. "/" .. info.name
+			if not dir_exists(src_dir) then
+				table.insert(to_fetch, { info = info, src_dir = src_dir })
+			end
+		end
+	end
+
+	if #to_fetch == 0 then
+		return
+	end
+
+	if #to_fetch == 1 then
+		fetch_clib_source(to_fetch[1].info)
+		return
+	end
+
+	log("info", "fetching " .. #to_fetch .. " packages in parallel")
+
+	local script = "#!/bin/sh\npids=\"\"\nfailed=0\n"
+	for _, item in ipairs(to_fetch) do
+		local info = item.info
+		local src_dir = item.src_dir
+		local cmd
+		if info.type == "git" then
+			cmd = string.format("git clone --quiet --depth 1 %s %s", info.url, src_dir)
+		elseif info.type == "tarball" then
+			local archive = BUILD_DIR .. "/" .. info.name .. ".tar.gz"
+			cmd = string.format(
+				'curl -fsSL "%s" -o "%s" && mkdir -p "%s" && tar -xzf "%s" -C "%s" --strip-components=1 && rm "%s"',
+				info.url,
+				archive,
+				src_dir,
+				archive,
+				src_dir,
+				archive
+			)
+		end
+		if cmd then
+			script = script .. string.format("(%s) &\npids=\"$pids $!\"\n", cmd)
+		end
+	end
+	script = script .. "for pid in $pids; do wait $pid || failed=1; done\nexit $failed\n"
+
+	local script_path = BUILD_DIR .. "/fetch_parallel.sh"
+	mkdir(BUILD_DIR)
+	local f = io.open(script_path, "w")
+	if not f then
+		log("error", "cannot create parallel fetch script")
+		return
+	end
+	f:write(script)
+	f:close()
+	execute("chmod +x " .. script_path)
+	local ok = execute(script_path)
+	os.remove(script_path)
+
+	if not ok then
+		log("error", "parallel fetch failed")
+		os.exit(1)
+	end
+end
+
 local function build_clib_for_target(zig_bin, zig_target, lua_incdir, clib_name)
 	local info = resolve_clib(clib_name)
 	if not info then
@@ -506,7 +586,7 @@ local function build_clib_for_target(zig_bin, zig_target, lua_incdir, clib_name)
 		return nil, nil
 	end
 
-	local target_build_dir = CACHE_DIR .. "/" .. info.name .. "-" .. zig_target
+	local target_build_dir = CACHE_DIR .. "/" .. info.name .. "-" .. cache_key(info.name, info.url, zig_target)
 	local lib_a = target_build_dir .. "/" .. info.name .. ".a"
 
 	if file_exists(lib_a) then
@@ -1238,12 +1318,7 @@ local function build_targets_parallel(spec, output_name, targets)
 	local zig_bin = ensure_zig()
 	ensure_lua_source()
 
-	for _, dep in ipairs(spec.c_deps) do
-		local info = resolve_clib(dep)
-		if info then
-			fetch_clib_source(info)
-		end
-	end
+	fetch_clibs_parallel(spec.c_deps)
 
 	for _, target in ipairs(targets) do
 		local zig_target = TARGET_MAP[target]
