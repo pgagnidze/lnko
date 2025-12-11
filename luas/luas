@@ -197,6 +197,19 @@ local function download_file(url, dest)
 	return false
 end
 
+local function hash_string(str)
+	local hash = 5381
+	for i = 1, #str do
+		hash = ((hash * 33) + str:byte(i)) % 0x100000000
+	end
+	return string.format("%08x", hash)
+end
+
+local function cache_key(...)
+	local parts = { ... }
+	return hash_string(table.concat(parts, "|")):sub(1, 8)
+end
+
 local function setup_colors()
 	local force = os.getenv("FORCE_COLOR")
 	local no_color = os.getenv("NO_COLOR")
@@ -251,15 +264,19 @@ local function show_help()
 
 Build a standalone binary from a LuaRocks project.
 
-Usage: luas [options] [output-name]
+Usage: luas [options] [modules...] [output-name]
 
 Arguments:
-    output-name     Name of output binary (default: <package>)
+    modules...      Lua files or directories to include as modules
+    output-name     Name of output binary (default: <package> or main filename)
 
 Options:
     -h, --help      Show this help message
     -q, --quiet     Only show errors and warnings
     -v, --verbose   Show detailed output
+    -m, --main      Main entry point (enables standalone mode, no rockspec needed)
+    -c, --clib      C library dependency (can be repeated: -c lfs -c lpeg)
+    -e, --embed     Embed data file/directory (can be repeated: -e assets/)
     -r, --rockspec  Path to rockspec file (default: auto-detect)
     -t, --target    Cross-compile for target (can be repeated)
                     C deps (lpeg, lfs) are auto-built from rockspec
@@ -289,6 +306,16 @@ Examples:
     luas myapp
     luas -t linux-x86_64 myapp
     luas -t linux-x86_64 -t linux-arm64 myapp
+
+Standalone mode (no rockspec):
+    luas -m app.lua myapp
+    luas -m app.lua lib/ -t linux-x86_64 myapp
+    luas -m app.lua -c lfs -c lpeg myapp
+
+Embedding data files:
+    luas -m app.lua -e templates/ -e config.json myapp
+    local embed = require("luas.embed")
+    local data = embed.read("templates/page.html")
 ]],
 		colors.bold,
 		colors.reset
@@ -409,7 +436,7 @@ end
 
 local function build_lua_for_target(zig_bin, zig_target)
 	local lua_src = ensure_lua_source()
-	local target_build_dir = CACHE_DIR .. "/lua-" .. LUA_VERSION .. "-" .. zig_target
+	local target_build_dir = CACHE_DIR .. "/lua-" .. cache_key("lua", LUA_VERSION, zig_target)
 	local liblua_a = target_build_dir .. "/liblua.a"
 
 	if file_exists(liblua_a) then
@@ -499,6 +526,73 @@ local function fetch_clib_source(info)
 	return src_dir
 end
 
+local function fetch_clibs_parallel(clib_names)
+	local to_fetch = {}
+	for _, name in ipairs(clib_names) do
+		local info = resolve_clib(name)
+		if info then
+			local src_dir = BUILD_DIR .. "/" .. info.name
+			if not dir_exists(src_dir) then
+				table.insert(to_fetch, { info = info, src_dir = src_dir })
+			end
+		end
+	end
+
+	if #to_fetch == 0 then
+		return
+	end
+
+	if #to_fetch == 1 then
+		fetch_clib_source(to_fetch[1].info)
+		return
+	end
+
+	log("info", "fetching " .. #to_fetch .. " packages in parallel")
+
+	local script = "#!/bin/sh\npids=\"\"\nfailed=0\n"
+	for _, item in ipairs(to_fetch) do
+		local info = item.info
+		local src_dir = item.src_dir
+		local cmd
+		if info.type == "git" then
+			cmd = string.format("git clone --quiet --depth 1 %s %s", info.url, src_dir)
+		elseif info.type == "tarball" then
+			local archive = BUILD_DIR .. "/" .. info.name .. ".tar.gz"
+			cmd = string.format(
+				'curl -fsSL "%s" -o "%s" && mkdir -p "%s" && tar -xzf "%s" -C "%s" --strip-components=1 && rm "%s"',
+				info.url,
+				archive,
+				src_dir,
+				archive,
+				src_dir,
+				archive
+			)
+		end
+		if cmd then
+			script = script .. string.format("(%s) &\npids=\"$pids $!\"\n", cmd)
+		end
+	end
+	script = script .. "for pid in $pids; do wait $pid || failed=1; done\nexit $failed\n"
+
+	local script_path = BUILD_DIR .. "/fetch_parallel.sh"
+	mkdir(BUILD_DIR)
+	local f = io.open(script_path, "w")
+	if not f then
+		log("error", "cannot create parallel fetch script")
+		return
+	end
+	f:write(script)
+	f:close()
+	execute("chmod +x " .. script_path)
+	local ok = execute(script_path)
+	os.remove(script_path)
+
+	if not ok then
+		log("error", "parallel fetch failed")
+		os.exit(1)
+	end
+end
+
 local function build_clib_for_target(zig_bin, zig_target, lua_incdir, clib_name)
 	local info = resolve_clib(clib_name)
 	if not info then
@@ -506,7 +600,7 @@ local function build_clib_for_target(zig_bin, zig_target, lua_incdir, clib_name)
 		return nil, nil
 	end
 
-	local target_build_dir = CACHE_DIR .. "/" .. info.name .. "-" .. zig_target
+	local target_build_dir = CACHE_DIR .. "/" .. info.name .. "-" .. cache_key(info.name, info.url, zig_target)
 	local lib_a = target_build_dir .. "/" .. info.name .. ".a"
 
 	if file_exists(lib_a) then
@@ -797,7 +891,7 @@ local function string_to_c_hex_literal(characters)
 	return table.concat(hex, ", ")
 end
 
-local function generate_c_source(lua_source_files, module_library_files)
+local function generate_c_source(lua_source_files, module_library_files, embed_files)
 	local mainlua = lua_source_files[1]
 	local outfilename = BUILD_DIR .. "/" .. basename(mainlua.path):gsub("%.lua$", "") .. ".luastatic.c"
 	local outfile = io.open(outfilename, "w+")
@@ -1016,6 +1110,59 @@ end
 		out(('    lua_setfield(L, -2, "%s");\n\n'):format(library.dotpath_noextension))
 	end
 
+	embed_files = embed_files or {}
+	if #embed_files > 0 then
+		for i, path in ipairs(embed_files) do
+			out(("    static const unsigned char embed_data_%i[] = {\n        "):format(i))
+			local f = io.open(path, "rb")
+			if f then
+				while true do
+					local data = f:read(4096)
+					if data then
+						out(string_to_c_hex_literal(data), ", ")
+					else
+						break
+					end
+				end
+				f:close()
+			end
+			out("\n    };\n")
+		end
+
+		out("    lua_newtable(L);\n")
+		for i, path in ipairs(embed_files) do
+			local key = path:gsub("^%./", "")
+			out(("    lua_pushlstring(L, (const char*)embed_data_%i, sizeof(embed_data_%i));\n"):format(i, i))
+			out(('    lua_setfield(L, -2, "%s");\n'):format(key))
+		end
+		out("    lua_setglobal(L, \"__luas_embed_data\");\n\n")
+
+		local embed_module = [[
+local embed_data = __luas_embed_data or {}
+local M = {}
+function M.read(path)
+    return embed_data[path]
+end
+function M.exists(path)
+    return embed_data[path] ~= nil
+end
+function M.list()
+    local files = {}
+    for k in pairs(embed_data) do
+        files[#files + 1] = k
+    end
+    table.sort(files)
+    return files
+end
+return M
+]]
+		out("    static const unsigned char luas_embed_module[] = {\n        ")
+		out(string_to_c_hex_literal(embed_module))
+		out("\n    };\n")
+		out("    lua_pushlstring(L, (const char*)luas_embed_module, sizeof(luas_embed_module));\n")
+		out("    lua_setfield(L, -2, \"luas.embed\");\n\n")
+	end
+
 	out([[
     if (docall(L, 1, LUA_MULTRET))
     {
@@ -1038,12 +1185,16 @@ end
 
 -- build --
 
-local function make_source_info(path)
+local function make_source_info(path, base)
 	local info = {}
 	info.path = path
 	info.basename = basename(path)
 	info.basename_noextension = info.basename:match("(.+)%.") or info.basename
-	info.dotpath = path:gsub("^%.%/", ""):gsub("[\\/]", ".")
+	local relpath = path
+	if base and base ~= "" and path:sub(1, #base) == base then
+		relpath = path:sub(#base + 1)
+	end
+	info.dotpath = relpath:gsub("^%.%/", ""):gsub("[\\/]", ".")
 	info.dotpath_noextension = info.dotpath:match("(.+)%.") or info.dotpath
 	info.dotpath_underscore = info.dotpath_noextension:gsub("[.-]", "_")
 	return info
@@ -1053,7 +1204,11 @@ local function prepare_sources(spec)
 	local lua_source_files = {}
 	table.insert(lua_source_files, make_source_info(spec.bin))
 	for _, f in ipairs(spec.modules) do
-		table.insert(lua_source_files, make_source_info(f))
+		if type(f) == "table" then
+			table.insert(lua_source_files, make_source_info(f.path, f.base))
+		else
+			table.insert(lua_source_files, make_source_info(f))
+		end
 	end
 	return lua_source_files
 end
@@ -1079,7 +1234,7 @@ local function build_binary(spec, output_name, lua_incdir, lua_static_lib, clib_
 	local lua_source_files = prepare_sources(spec)
 	local module_library_files = find_luaopen_symbols(clib_files)
 
-	local outfilename = generate_c_source(lua_source_files, module_library_files)
+	local outfilename = generate_c_source(lua_source_files, module_library_files, spec.embeds)
 
 	local uname = shellout("uname -s")
 	local rdynamic = "-rdynamic"
@@ -1149,7 +1304,7 @@ local function build_for_target(spec, output_name, target)
 
 	local lua_source_files = prepare_sources(spec)
 
-	local outfilename = generate_c_source(lua_source_files, module_library_files)
+	local outfilename = generate_c_source(lua_source_files, module_library_files, spec.embeds)
 
 	local cc = string.format('"%s" cc -target %s', zig_bin, zig_target)
 
@@ -1238,12 +1393,7 @@ local function build_targets_parallel(spec, output_name, targets)
 	local zig_bin = ensure_zig()
 	ensure_lua_source()
 
-	for _, dep in ipairs(spec.c_deps) do
-		local info = resolve_clib(dep)
-		if info then
-			fetch_clib_source(info)
-		end
-	end
+	fetch_clibs_parallel(spec.c_deps)
 
 	for _, target in ipairs(targets) do
 		local zig_target = TARGET_MAP[target]
@@ -1316,9 +1466,14 @@ end
 local function parse_args(args)
 	local opts = {
 		rockspec = nil,
+		main = nil,
+		clibs = {},
+		modules = {},
+		embeds = {},
 		output = nil,
 		targets = {},
 	}
+	local positionals = {}
 	local i = 1
 	while i <= #args do
 		local a = args[i]
@@ -1329,6 +1484,15 @@ local function parse_args(args)
 			log_level = 0
 		elseif a == "-v" or a == "--verbose" then
 			log_level = 2
+		elseif a == "-m" or a == "--main" then
+			i = i + 1
+			opts.main = args[i]
+		elseif a == "-c" or a == "--clib" then
+			i = i + 1
+			table.insert(opts.clibs, args[i])
+		elseif a == "-e" or a == "--embed" then
+			i = i + 1
+			table.insert(opts.embeds, args[i])
 		elseif a == "-r" or a == "--rockspec" then
 			i = i + 1
 			opts.rockspec = args[i]
@@ -1346,10 +1510,17 @@ local function parse_args(args)
 				os.exit(1)
 			end
 			table.insert(opts.targets, target)
-		elseif not opts.output then
-			opts.output = a
+		elseif a:sub(1, 1) ~= "-" then
+			table.insert(positionals, a)
 		end
 		i = i + 1
+	end
+	for _, p in ipairs(positionals) do
+		if p:match("%.lua$") or dir_exists(p) then
+			table.insert(opts.modules, p)
+		else
+			opts.output = p
+		end
 	end
 	return opts
 end
@@ -1375,6 +1546,99 @@ local function check_dependencies()
 	log("success", "all dependencies found")
 end
 
+local function collect_lua_files(path)
+	path = path:gsub("/+$", "")
+	local files = {}
+	if path:match("%.lua$") then
+		if file_exists(path) then
+			local base = path:match("^(.*)/[^/]+$") or ""
+			if base ~= "" then
+				base = base .. "/"
+			end
+			table.insert(files, { path = path, base = base })
+		end
+	elseif dir_exists(path) then
+		local base = path:match("^(.*)/[^/]+$") or ""
+		if base ~= "" then
+			base = base .. "/"
+		end
+		for _, f in ipairs(glob(path .. "/*.lua")) do
+			table.insert(files, { path = f, base = base })
+		end
+		for _, f in ipairs(glob(path .. "/**/*.lua")) do
+			table.insert(files, { path = f, base = base })
+		end
+	end
+	return files
+end
+
+local function collect_embed_files(paths)
+	local files = {}
+	local seen = {}
+	for _, path in ipairs(paths) do
+		path = path:gsub("/+$", "")
+		if file_exists(path) and not dir_exists(path) then
+			if not seen[path] then
+				seen[path] = true
+				table.insert(files, path)
+			end
+		elseif dir_exists(path) then
+			for _, f in ipairs(glob(path .. "/*")) do
+				if file_exists(f) and not dir_exists(f) and not seen[f] then
+					seen[f] = true
+					table.insert(files, f)
+				end
+			end
+			for _, f in ipairs(glob(path .. "/**/*")) do
+				if file_exists(f) and not dir_exists(f) and not seen[f] then
+					seen[f] = true
+					table.insert(files, f)
+				end
+			end
+		end
+	end
+	table.sort(files)
+	return files
+end
+
+local function create_standalone_spec(opts)
+	if not file_exists(opts.main) then
+		log("error", "main file not found: " .. opts.main)
+		os.exit(1)
+	end
+
+	local module_files = {}
+	for _, path in ipairs(opts.modules) do
+		for _, f in ipairs(collect_lua_files(path)) do
+			if f.path ~= opts.main then
+				table.insert(module_files, f)
+			end
+		end
+	end
+	table.sort(module_files, function(a, b) return a.path < b.path end)
+
+	local embed_files = collect_embed_files(opts.embeds)
+
+	local name = opts.output or basename(opts.main):gsub("%.lua$", "")
+
+	log("success", "main: " .. opts.main)
+	log("success", "modules: " .. #module_files .. " files")
+	if #opts.clibs > 0 then
+		log("success", "C dependencies: " .. table.concat(opts.clibs, ", "))
+	end
+	if #embed_files > 0 then
+		log("success", "embedded files: " .. #embed_files)
+	end
+
+	return {
+		name = name,
+		bin = opts.main,
+		modules = module_files,
+		c_deps = opts.clibs,
+		embeds = embed_files,
+	}
+end
+
 local function main(args)
 	setup_colors()
 	local opts = parse_args(args)
@@ -1385,8 +1649,17 @@ local function main(args)
 
 	mkdir(BUILD_DIR)
 
-	local rockspec_path = find_rockspec(opts.rockspec)
-	local spec = parse_rockspec(rockspec_path)
+	local spec
+	if opts.main then
+		spec = create_standalone_spec(opts)
+	else
+		local rockspec_path = find_rockspec(opts.rockspec)
+		spec = parse_rockspec(rockspec_path)
+		spec.embeds = collect_embed_files(opts.embeds)
+		if #spec.embeds > 0 then
+			log("success", "embedded files: " .. #spec.embeds)
+		end
+	end
 
 	local output_name = opts.output or spec.name
 
