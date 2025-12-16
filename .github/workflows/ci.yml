@@ -27,6 +27,12 @@ jobs:
         run: luarocks install luacheck
       - name: Lint
         run: luacheck lnko/ bin/ spec/
+      - name: Check formatting
+        uses: JohnnyMorganz/stylua-action@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          version: latest
+          args: --check .
 
   test:
     name: Test

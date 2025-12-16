@@ -1,47 +1,47 @@
 local module = {}
 
 local function should_use_color()
-    if os.getenv("FORCE_COLOR") then return true end
-    if os.getenv("NO_COLOR") then return false end
-    local term = os.getenv("TERM")
-    if not term or term == "dumb" then return false end
-    return true
+  if os.getenv("FORCE_COLOR") then return true end
+  if os.getenv("NO_COLOR") then return false end
+  local term = os.getenv("TERM")
+  if not term or term == "dumb" then return false end
+  return true
 end
 
 local use_color = should_use_color()
 
 local codes = {
-    reset = 0,
-    bold = 1,
-    red = 31,
-    green = 32,
-    yellow = 33,
-    blue = 34,
-    bright_black = 90,
+  reset = 0,
+  bold = 1,
+  red = 31,
+  green = 32,
+  yellow = 33,
+  blue = 34,
+  bright_black = 90,
 }
 
 local function seq(code)
-    if not use_color then return "" end
-    return string.char(27) .. "[" .. code .. "m"
+  if not use_color then return "" end
+  return string.char(27) .. "[" .. code .. "m"
 end
 
 function module.write(...)
-    local args = { ... }
-    for i = 1, #args do
-        args[i] = tostring(args[i])
-    end
-    io.stderr:write(table.concat(args))
-    io.stderr:flush()
+  local args = { ... }
+  for i = 1, #args do
+    args[i] = tostring(args[i])
+  end
+  io.stderr:write(table.concat(args))
+  io.stderr:flush()
 end
 
 function module.color(name)
-    local code = codes[name]
-    if not code then return "" end
-    return seq(code)
+  local code = codes[name]
+  if not code then return "" end
+  return seq(code)
 end
 
 function module.reset()
-    return seq(codes.reset)
+  return seq(codes.reset)
 end
 
 return module
