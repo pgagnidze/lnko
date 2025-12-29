@@ -18,8 +18,7 @@ function module.can_unfold(target_path, pkg_path, source_dir, plan)
 
   if not fs.is_directory(resolved) then return nil end
 
-  local source_abs = fs.absolute(source_dir)
-  if resolved:sub(1, #source_abs) ~= source_abs then return nil end
+  if resolved:sub(1, #source_dir) ~= source_dir then return nil end
 
   return resolved
 end

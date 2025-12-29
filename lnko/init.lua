@@ -116,8 +116,8 @@ end
 
 function module.plan_link(source_dir, package, target_dir, options)
   options = options or {}
-  source_dir = fs.absolute(source_dir)
-  target_dir = fs.absolute(target_dir)
+  source_dir = fs.canonical(source_dir)
+  target_dir = fs.canonical(target_dir)
   local pkg_dir = fs.join(source_dir, package)
   local plan = plan_mod.new()
 
@@ -173,7 +173,9 @@ function module.plan_link(source_dir, package, target_dir, options)
       elseif fs.is_directory(source_path) and not fs.is_symlink(source_path) then
         if plan_mod.is_a_link(plan, target_path) then
           local existing_pkg_path = tree.can_unfold(target_path, source_path, source_dir, plan)
-          if existing_pkg_path then
+          if existing_pkg_path == source_path then
+            log.debug("already linked " .. target_path, options.verbose)
+          elseif existing_pkg_path then
             log.debug("unfolding " .. target_path, options.verbose)
             tree.unfold(target_path, existing_pkg_path, plan)
             if not process_dir(source_path, target_path) then return false end
@@ -236,8 +238,8 @@ end
 
 function module.plan_unlink(source_dir, package, target_dir, options)
   options = options or {}
-  source_dir = fs.absolute(source_dir)
-  target_dir = fs.absolute(target_dir)
+  source_dir = fs.canonical(source_dir)
+  target_dir = fs.canonical(target_dir)
   local pkg_dir = fs.join(source_dir, package)
   local plan = plan_mod.new()
 
@@ -356,8 +358,8 @@ function module.unlink_package(source_dir, package, target_dir, options)
 end
 
 function module.show_status(source_dir, target_dir, _options)
-  source_dir = fs.absolute(source_dir)
-  target_dir = fs.absolute(target_dir)
+  source_dir = fs.canonical(source_dir)
+  target_dir = fs.canonical(target_dir)
   local packages = list_packages(source_dir)
 
   if #packages == 0 then
@@ -451,8 +453,8 @@ function module.show_status(source_dir, target_dir, _options)
 end
 
 function module.find_orphans(source_dir, target_dir)
-  local source_abs = fs.absolute(source_dir)
-  local target_abs = fs.absolute(target_dir)
+  local source_abs = fs.canonical(source_dir)
+  local target_abs = fs.canonical(target_dir)
   local orphans = {}
 
   local function scan(dir)

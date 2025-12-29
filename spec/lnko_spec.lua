@@ -402,6 +402,57 @@ describe("lnko", function()
       assert.is_true(fs.symlink_points_to(target .. "/.bashrc", source .. "/bash/.bashrc"))
     end)
 
+    it("should resolve symlinks in parent directories with realpath", function()
+      local base = test_dir .. "/realpath_test"
+      local real_dir = base .. "/var/home/user"
+      local symlink_dir = base .. "/home/user"
+
+      os.execute("mkdir -p " .. real_dir)
+      os.execute("mkdir -p " .. base .. "/home")
+      os.execute("ln -s " .. real_dir .. " " .. symlink_dir)
+
+      assert.are.equal(real_dir, fs.realpath(symlink_dir))
+      assert.are.equal(real_dir, fs.realpath(real_dir))
+      assert.is_nil(fs.realpath(base .. "/nonexistent"))
+    end)
+
+    it("should recognize existing stow symlinks when home is symlinked", function()
+      local base = test_dir .. "/stow_compat_test"
+      local real_home = base .. "/var/home/user"
+      local fake_home = base .. "/home/user"
+
+      os.execute("mkdir -p " .. real_home .. "/dotfiles/pkg/.config/app")
+      os.execute("mkdir -p " .. real_home .. "/.config")
+      os.execute("mkdir -p " .. base .. "/home")
+      os.execute("ln -s " .. real_home .. " " .. fake_home)
+      os.execute("echo 'config' > " .. real_home .. "/dotfiles/pkg/.config/app/settings")
+      os.execute("ln -s ../dotfiles/pkg/.config/app " .. real_home .. "/.config/app")
+
+      local p = lnko.plan_link(fake_home .. "/dotfiles", "pkg", fake_home, { skip = true })
+      assert.are.equal(0, #plan.get_tasks(p))
+    end)
+
+    it("should create working symlinks when source and target use mixed paths", function()
+      local base = test_dir .. "/mixed_path_test"
+      local real_home = base .. "/var/home/user"
+      local fake_home = base .. "/home/user"
+
+      os.execute("mkdir -p " .. real_home .. "/dotfiles/pkg/.config/app")
+      os.execute("mkdir -p " .. real_home .. "/.config")
+      os.execute("mkdir -p " .. base .. "/home")
+      os.execute("ln -s " .. real_home .. " " .. fake_home)
+      os.execute("echo 'testcontent' > " .. real_home .. "/dotfiles/pkg/.config/app/settings")
+
+      local p = lnko.plan_link(real_home .. "/dotfiles", "pkg", fake_home, { skip = true })
+      plan.execute(p, {})
+
+      local f = io.open(real_home .. "/.config/app/settings", "r")
+      assert.is_truthy(f, "symlink should be readable")
+      local content = f:read("*a")
+      f:close()
+      assert.are.equal("testcontent\n", content)
+    end)
+
     it("should plan but fail to execute on read-only target", function()
       local source = test_dir .. "/readonly_source"
       local target = test_dir .. "/readonly_target"

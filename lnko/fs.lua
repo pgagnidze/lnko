@@ -179,6 +179,18 @@ function module.absolute(path)
   return module.join(cwd, path)
 end
 
+function module.realpath(path)
+  local cwd = lfs.currentdir()
+  if not lfs.chdir(path) then return nil end
+  local real = lfs.currentdir()
+  lfs.chdir(cwd)
+  return real
+end
+
+function module.canonical(path)
+  return module.realpath(path) or module.absolute(path)
+end
+
 function module.resolve_symlink(path)
   if not module.is_symlink(path) then return path end
 
@@ -227,8 +239,10 @@ function module.symlink_points_to(link_path, expected_target)
 
   if target == expected_target then return true end
 
-  local resolved = module.resolve_symlink(link_path)
-  local expected_abs = module.absolute(expected_target)
+  local link_dir = module.dirname(link_path)
+  local link_dir_real = module.realpath(link_dir) or link_dir
+  local resolved = module.normalize(module.join(link_dir_real, target))
+  local expected_abs = module.canonical(expected_target)
 
   return resolved == expected_abs or module.normalize(resolved) == module.normalize(expected_abs)
 end
