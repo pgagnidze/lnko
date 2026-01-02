@@ -87,8 +87,10 @@ jobs:
           path: release
       - name: Prepare release files
         run: |
-          chmod +x release/lnko-bin-*
-          cd release && sha256sum * > checksums.txt
+          cd release
+          for f in lnko-bin-*; do mv "$f" "${f/lnko-bin-/lnko-}"; done
+          chmod +x lnko-*
+          sha256sum lnko-* > checksums.txt
       - name: Create GitHub release
         uses: softprops/action-gh-release@v2
         with:
