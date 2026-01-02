@@ -1,21 +1,21 @@
 # luast
 
-Build standalone Lua binaries with cross-compilation support.
+Build static Lua binaries with cross-compilation support.
 
 ## Overview
 
-luast builds single-file executables from LuaRocks projects. It embeds Lua source files into a static binary that runs without any runtime dependencies.
+luast builds single-file static executables from LuaRocks projects using Zig. It embeds Lua source files into a binary that runs without any runtime dependencies.
 
-**Key feature:** Cross-compile from Linux/macOS to any supported target using Zig as the C compiler.
+All builds use Zig as the compiler toolchain, producing fully static binaries.
 
 ## Quick Start
 
 ```bash
-# Build for current platform
-./luast myapp
+# Build for current platform (static binary)
+luast myapp
 
-# Cross-compile for multiple targets
-./luast -t linux-x86_64 -t linux-arm64 -t darwin-arm64 -t windows-x86_64 myapp
+# Build for multiple targets
+luast -t linux-x86_64 -t darwin-arm64 -t windows-x86_64 myapp
 ```
 
 ## CLI Usage
@@ -31,7 +31,7 @@ Options:
     -c, --clib      C library dependency (can be repeated)
     -e, --embed     Embed data file/directory (can be repeated)
     -r, --rockspec  Path to rockspec file (default: auto-detect)
-    -t, --target    Cross-compile for target (can be repeated)
+    -t, --target    Target platform (default: native)
 
 Available targets:
     linux-x86_64, linux-arm64
@@ -40,9 +40,8 @@ Available targets:
 
 Environment:
     BUILD_DIR       Build directory (default: .build)
-    LUAST_CACHE      Cache directory for zig/lua (default: ~/.cache/luast)
+    LUAST_CACHE     Cache directory for zig/lua (default: ~/.cache/luast)
     LUA_VERSION     Lua version to build (default: 5.4.8)
-    CC              C compiler (default: cc, ignored with --target)
 ```
 
 ## Standalone Mode
@@ -50,31 +49,18 @@ Environment:
 Build without a rockspec using the `--main` flag:
 
 ```bash
-# Simple script
 luast -m app.lua myapp
-
-# With module directories
 luast -m app.lua lib/ src/ myapp
-
-# With C libraries
 luast -m app.lua -c lfs -c lpeg myapp
-
-# Cross-compile
-luast -m app.lua lib/ -c lfs -t linux-x86_64 -t darwin-arm64 myapp
 ```
 
 ### Using LuaRocks Modules
 
-Include modules installed via LuaRocks by specifying their paths directly:
+Include modules installed via LuaRocks by specifying their paths:
 
 ```bash
-# Install modules with luarocks
 luarocks install --local inspect
-luarocks install --local penlight
-
-# Include in build (module names computed automatically)
 luast -m app.lua ~/.luarocks/share/lua/5.4/inspect.lua myapp
-luast -m app.lua ~/.luarocks/share/lua/5.4/pl/ myapp
 ```
 
 Module names are computed relative to parent directory:
@@ -84,53 +70,40 @@ Module names are computed relative to parent directory:
 
 ## Embedding Data Files
 
-Embed static assets (templates, configs, etc.) into the binary:
+Embed static assets into the binary:
 
 ```bash
 luast -m app.lua -e templates/ -e config.json myapp
 ```
 
-Access embedded files at runtime:
+Access at runtime:
 
 ```lua
 local embed = require("luast.embed")
-
--- Read file contents
 local html = embed.read("templates/page.html")
-
--- Check if file exists
-if embed.exists("config.json") then
-    local config = embed.read("config.json")
-end
-
--- List all embedded files
-for _, path in ipairs(embed.list()) do
-    print(path)
-end
 ```
 
 ## How It Works
 
 1. Parses rockspec (or uses `--main` for standalone mode)
-2. Auto-detects C dependencies from rockspec (or uses `-c` flags)
-3. Downloads and caches Zig toolchain for cross-compilation
-4. Fetches C library sources in parallel
-5. Builds Lua and C libraries with content-hashed caching
-6. Embeds Lua source and data files as C arrays
-7. Compiles to static binary
+2. Downloads and caches Zig toolchain
+3. Builds Lua from source with Zig
+4. Fetches and builds C library sources
+5. Embeds Lua source and data files as C arrays
+6. Links everything into a static binary
 
 ## C Library Support
-
-C dependencies listed in rockspec are automatically built:
 
 | Dependency | Status |
 |------------|--------|
 | luafilesystem | Built-in |
 | lpeg | Built-in |
+| lua-cjson | Built-in |
+| lsqlite3complete | Built-in (includes SQLite3) |
 
 ### Custom C Libraries
 
-Add custom C libraries via `.luastrc` config file:
+Add custom C libraries via `.luastrc`:
 
 ```lua
 return {
@@ -143,28 +116,21 @@ return {
 
 Fields:
 
-- `url` (required): Git repo or tarball URL
+- `url` (required): Git repo, tarball, or zip URL
 - `sources` (required): List of C source files
 - `name`: Library name (defaults to key)
-- `type`: `"git"` or `"tarball"` (auto-detected from URL)
-- `luaopen`: Lua module name (defaults to key)
+- `type`: `"git"`, `"tarball"`, or `"zip"` (auto-detected)
+- `luaopen`: C function name suffix (defaults to key)
+- `modname`: Lua module name for package.preload
+- `defines`: List of C preprocessor definitions
 
 ## Requirements
 
-**Host (where luast runs):**
-
 - Linux or macOS
 - Lua 5.1+
-- C compiler, ar, git
-- curl or wget
+- git, curl or wget
 
-**For native builds:**
-
-- Lua development files (lua.h, liblua.a)
-
-**For cross-compilation:**
-
-- No additional requirements (Zig is downloaded automatically)
+Zig is downloaded automatically on first run.
 
 ## Output Binaries
 
@@ -194,43 +160,21 @@ Linux binaries are fully static (musl libc). No runtime dependencies.
 |-------|-------------|----------|
 | `output` | Output binary name | No (defaults to package name) |
 | `rockspec` | Path to rockspec file | No (auto-detected) |
-| `targets` | Space-separated list of targets | No (native build if empty) |
-
-### Example Workflow
-
-```yaml
-name: Build
-
-on:
-  push:
-    tags: ["v*"]
-
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pgagnidze/lnko/luast@main
-        with:
-          output: myapp
-          targets: linux-x86_64 linux-arm64 darwin-arm64 windows-x86_64
-      - uses: actions/upload-artifact@v4
-        with:
-          name: binaries
-          path: myapp-*
-```
+| `targets` | Space-separated list of targets | No (native if empty) |
 
 ## Limitations
 
-- Linux cross-compiled binaries use musl libc (not glibc)
+- Linux binaries use musl libc (not glibc)
 - No automatic dependency resolution from LuaRocks
 - No LuaJIT support
+- No OpenSSL/TLS support (libraries requiring OpenSSL cannot be built)
+- C libraries with complex build systems (autoconf, cmake) not supported
 
 ## Credits
 
 Based on [luastatic](https://github.com/ers35/luastatic) by ers35.
 
-Cross-compilation powered by [Zig](https://ziglang.org/).
+Powered by [Zig](https://ziglang.org/).
 
 ## License
 
