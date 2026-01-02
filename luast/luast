@@ -114,6 +114,44 @@ local CLIB_REGISTRY = {
 		defines = { 'LSQLITE_VERSION=\\"0.9.6\\"' },
 	},
 	lsqlite3 = "lsqlite3complete",
+	luasocket = {
+		name = "socket",
+		url = "https://github.com/lunarmodules/luasocket.git",
+		type = "git",
+		sources = {
+			"src/luasocket.c",
+			"src/timeout.c",
+			"src/buffer.c",
+			"src/io.c",
+			"src/auxiliar.c",
+			"src/options.c",
+			"src/inet.c",
+			"src/except.c",
+			"src/select.c",
+			"src/tcp.c",
+			"src/udp.c",
+			"src/compat.c",
+		},
+		sources_unix = { "src/usocket.c" },
+		sources_windows = { "src/wsocket.c" },
+		luaopen = "socket_core",
+		modname = "socket.core",
+		defines = { "LUASOCKET_API=" },
+		lua_files = { "src/socket.lua", "src/ltn12.lua", "src/mime.lua" },
+	},
+	socket = "luasocket",
+	["socket.core"] = "luasocket",
+	["luasocket.mime"] = {
+		name = "mime",
+		url = "https://github.com/lunarmodules/luasocket.git",
+		type = "git",
+		sources = { "src/mime.c", "src/compat.c" },
+		luaopen = "mime_core",
+		modname = "mime.core",
+		defines = { "LUASOCKET_API=", "MIME_API=" },
+	},
+	mime = "luasocket.mime",
+	["mime.core"] = "luasocket.mime",
 }
 
 local function load_luastrc()
@@ -653,9 +691,27 @@ local function build_clib_for_target(zig_bin, zig_target, lua_incdir, clib_name)
 		end
 	end
 
+	local all_sources = {}
+	for _, src in ipairs(info.sources) do
+		table.insert(all_sources, src)
+	end
+	if zig_target:find("windows") then
+		if info.sources_windows then
+			for _, src in ipairs(info.sources_windows) do
+				table.insert(all_sources, src)
+			end
+		end
+	else
+		if info.sources_unix then
+			for _, src in ipairs(info.sources_unix) do
+				table.insert(all_sources, src)
+			end
+		end
+	end
+
 	local objects = {}
 	local commands = {}
-	for _, src in ipairs(info.sources) do
+	for _, src in ipairs(all_sources) do
 		local src_path = src_dir .. "/" .. src
 		local obj_name = basename(src):gsub("%.c$", ".o")
 		local obj = target_build_dir .. "/" .. obj_name
@@ -1119,6 +1175,13 @@ local function build_for_target(spec, output_name, target)
 				dotpath_underscore = info.luaopen,
 				dotpath_noextension = modname,
 			})
+		end
+		if info and info.lua_files then
+			local src_dir = fetch_clib_source(info)
+			for _, lua_file in ipairs(info.lua_files) do
+				local full_path = src_dir .. "/" .. lua_file
+				table.insert(spec.modules, { path = full_path, base = src_dir .. "/src/" })
+			end
 		end
 	end
 

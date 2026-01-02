@@ -100,6 +100,7 @@ local html = embed.read("templates/page.html")
 | lpeg | Built-in |
 | lua-cjson | Built-in |
 | lsqlite3complete | Built-in (includes SQLite3) |
+| luasocket | Built-in (includes socket.lua, ltn12.lua, mime.lua) |
 
 ### Custom C Libraries
 
